@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+.idea
+.claude
+.data
+.env*
+work
+outputs
+*.tsbuildinfo
+public/demo/voice

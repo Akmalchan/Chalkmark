@@ -1,0 +1,126 @@
+"use client";
+
+import { useState } from "react";
+import { LectureVisual } from "@/app/lecture-visual";
+import { Equation, MarkdownLite, MathText } from "@/components/math";
+import { formatClock } from "@/lib/notes/assemble";
+import type { NoteBlock, NotesDoc } from "@/lib/notes/schema";
+
+type Props = {
+  doc: NotesDoc;
+  /** file name → URL (object URLs while capturing, API URLs when shared). */
+  urls: Record<string, string>;
+};
+
+const KIND_LABEL: Record<string, string> = { graph: "Graph", diagram: "Diagram", drawing: "Drawing", table: "Table" };
+
+export function NotesPaper({ doc, urls }: Props) {
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  const [boardView, setBoardView] = useState<Record<string, "paper" | "raw">>({});
+  const created = new Date(doc.createdAt);
+  const savings = doc.stats.videoTokensEstimate > 0 && doc.stats.inputTokens > 0
+    ? doc.stats.videoTokensEstimate / doc.stats.inputTokens : null;
+
+  return (
+    <article className="paper">
+      <header className="paper-header">
+        <div className="paper-kicker"><span>{doc.course}</span><span>{created.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>{doc.stats.durationSeconds > 0 && <span>{formatClock(doc.stats.durationSeconds)}</span>}</div>
+        <h1>{doc.title}</h1>
+        {doc.summary && <p className="paper-summary"><MathText text={doc.summary} /></p>}
+      </header>
+
+      <div className="paper-ledger no-print" aria-label="How these notes were made">
+        <div><strong>{doc.stats.boards}</strong><span>board states kept</span></div>
+        <div><strong>{doc.stats.blocks}</strong><span>items read from the board</span></div>
+        <div><strong>{doc.stats.framesAnalyzed}</strong><span>frames analysed on-device</span></div>
+        <div><strong>{doc.stats.inputTokens ? `${(doc.stats.inputTokens / 1000).toFixed(1)}k` : "—"}</strong><span>{savings && savings >= 1.5 ? `Gemini tokens · ${savings.toFixed(savings < 10 ? 1 : 0)}× fewer than sending the video` : "Gemini input tokens used"}</span></div>
+        <div className="ledger-zero"><strong>0 MB</strong><span>video uploaded</span></div>
+      </div>
+
+      {doc.warnings.length > 0 && <aside className="paper-warnings no-print">{doc.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</aside>}
+
+      {doc.sections.map((section, index) => (
+        <section className="paper-section" key={index}>
+          <div className="paper-section-head">
+            <span className="paper-section-number">{String(index + 1).padStart(2, "0")}</span>
+            <h2><MathText text={section.title} /></h2>
+            {section.start !== null && <time>written {formatClock(section.start)}{section.end !== null && section.end - section.start >= 5 ? `–${formatClock(section.end)}` : ""}</time>}
+          </div>
+          {section.explanation.length > 0 && <div className="paper-explanation">{section.explanation.map((paragraph, i) => <p key={i}><MathText text={paragraph} /></p>)}</div>}
+          <div className="paper-blocks">{section.blocks.map(block => <Block key={block.id} block={block} urls={urls} />)}</div>
+          {section.takeaways.length > 0 && (
+            <aside className="paper-takeaways"><span>Remember</span><ul>{section.takeaways.map((item, i) => <li key={i}><MathText text={item} /></li>)}</ul></aside>
+          )}
+        </section>
+      ))}
+
+      {doc.boards.length > 0 && (
+        <section className="paper-appendix">
+          <h3>Board pages <small>every state the board reached before it was erased</small></h3>
+          <div className="board-pages">
+            {doc.boards.map(board => {
+              const view = boardView[board.id] ?? "paper";
+              return (
+                <figure key={board.id}>
+                  <img src={urls[view === "paper" ? board.paper : board.raw]} alt={`Board as it was at ${formatClock(board.t)}`} width={board.width} height={board.height} />
+                  <figcaption>
+                    <span>{board.reason === "erase" ? "Saved before erase" : board.reason === "manual" ? "Captured" : "Final board"} · {formatClock(board.t)}</span>
+                    <button className="no-print" onClick={() => setBoardView(state => ({ ...state, [board.id]: view === "paper" ? "raw" : "paper" }))}>{view === "paper" ? "Show photo" : "Show clean"}</button>
+                  </figcaption>
+                </figure>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {doc.transcript.length > 0 && (
+        <section className="paper-appendix">
+          <h3>
+            Speech <small>timestamped transcript of what was said</small>
+            <button className="no-print" onClick={() => setTranscriptOpen(open => !open)}>{transcriptOpen ? "Hide" : `Show ${doc.transcript.length} lines`}</button>
+          </h3>
+          {transcriptOpen && <div className="paper-transcript">{doc.transcript.map((segment, i) => <p key={i}><time>{formatClock(segment.start)}</time><MathText text={segment.text} /></p>)}</div>}
+        </section>
+      )}
+
+      <footer className="paper-footer">Reconstructed by Chalkmark from the board itself. Figures are the lecturer&apos;s own ink, cleaned; text and math were read by Gemini — check anything marked [?].</footer>
+    </article>
+  );
+}
+
+function Block({ block, urls }: { block: NoteBlock; urls: Record<string, string> }) {
+  const uncertain = block.legibility !== "clear";
+  if (block.kind === "heading") return <h3 className="paper-heading"><MathText text={block.content} /></h3>;
+  if (block.kind === "equation") {
+    return <div className={`paper-equation ${uncertain ? "uncertain" : ""}`}><Equation latex={block.content} meaning={block.detail || undefined} /></div>;
+  }
+  if (block.kind === "table" && block.table) {
+    return (
+      <figure className="paper-table">
+        {block.content && <figcaption><MathText text={block.content} /></figcaption>}
+        <table>
+          <thead><tr>{block.table.columns.map((column, i) => <th key={i}><MathText text={column} /></th>)}</tr></thead>
+          <tbody>{block.table.rows.map((row, r) => <tr key={r}>{block.table!.columns.map((_, c) => <td key={c}><MathText text={row[c] ?? ""} /></td>)}</tr>)}</tbody>
+        </table>
+      </figure>
+    );
+  }
+  if (block.figure && urls[block.figure]) {
+    return (
+      <figure className={`paper-figure kind-${block.kind}`}>
+        <div className="paper-figure-art">
+          <img src={urls[block.figure]} alt={block.detail || block.content} />
+          {block.graph && <div className="paper-redraw"><LectureVisual visual={{ kind: "coordinate_graph", title: "Clean redraw", description: block.content, panels: [block.graph], table: null, sourceTimestampSeconds: null, fidelity: "qualitative", uncertainty: null, nodes: [], edges: [] }} /></div>}
+        </div>
+        <figcaption>
+          <span className="paper-figure-kind">{KIND_LABEL[block.kind] ?? "From the board"}{block.writtenAt !== null && ` · ${formatClock(block.writtenAt)}`}</span>
+          <strong><MathText text={block.content} /></strong>
+          {block.detail && block.kind !== "text" && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
+          {block.kind === "text" && <span className="paper-figure-detail">Handwriting was hard to read, so the original ink is shown.</span>}
+        </figcaption>
+      </figure>
+    );
+  }
+  return <div className={`paper-text ${uncertain ? "uncertain" : ""}`}><MarkdownLite text={block.content} /></div>;
+}

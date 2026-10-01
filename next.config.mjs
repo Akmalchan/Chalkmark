@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "90mb",
-    },
-  },
+  // Self-contained server bundle for the Cloud Run container (see Dockerfile).
+  output: "standalone",
+  serverExternalPackages: ["@google-cloud/firestore", "@google-cloud/storage", "sharp"],
 };
 
 export default nextConfig;

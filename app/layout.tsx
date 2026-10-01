@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import "katex/dist/katex.min.css";
 import "./globals.css";
+import "./paper.css";
+import "./studio.css";
+import "./landing.css";
 
 export const metadata: Metadata = {
   title: "Chalkmark — Continuous visual memory for lectures",

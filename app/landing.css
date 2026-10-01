@@ -1,0 +1,27 @@
+/* ---------- Landing additions ---------- */
+
+.hero-actions { margin-top: 34px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cta { padding: 14px 20px; border: 1px solid #b9c0b8; border-radius: 30px; background: var(--white); color: var(--ink); font-size: 14px; font-weight: 650; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+.cta:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(22,34,30,.12); }
+.cta.primary { border-color: var(--ink); background: var(--ink); color: var(--acid); }
+.cta.subtle { border-color: transparent; background: transparent; color: #4d6157; padding-left: 6px; }
+.hero-copy .privacy-proof { margin-top: 26px; }
+
+.steps.four { grid-template-columns: repeat(4, 1fr); gap: 34px; }
+.steps.four h3 { font-size: 27px; }
+.steps.four > div { padding-right: 22px; }
+
+.for-who { max-width: 1260px; margin: 0 auto; padding: 80px clamp(24px, 6vw, 90px); display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+.for-who h3 { margin: 0 0 10px; font-family: var(--font-serif); font-size: 25px; font-weight: 400; letter-spacing: -.02em; }
+.for-who p { margin: 0; color: #56635c; font-size: 15px; line-height: 1.65; }
+.landing-footer a { color: inherit; }
+
+@media (max-width: 1000px) {
+  .hero { grid-template-columns: 1fr; }
+  .process-visual { display: none; }
+  .steps.four, .for-who { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .steps.four, .for-who { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 52px; }
+}
