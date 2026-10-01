@@ -18,9 +18,15 @@ Tracks to enter: **GDG "Build with AI for Social Good"** and **SFSU "Build for S
 | Paper notes: typeset LaTeX, **real ink crops** for graphs/drawings with measured write times, board pages, transcript, Print/PDF, Markdown | ✅ |
 | Save & share link + QR (`/l/[id]`) | ✅ locally (disk). Firestore + Cloud Storage code path written, **not yet run on GCP** |
 | Cloud Run deploy (`Dockerfile`, `scripts/deploy-cloud-run.sh`) | ⚠️ written, `npm run build` passes, **not deployed yet** (needs your credits) |
+| MediaPipe lecturer mask (on-device, self-hosted WASM) | ✅ toggle in setup, on by default |
+| Gemma 4 instant board titles (`/api/board/caption`) | ✅ code path; Gemma endpoints were flaky overnight, falls back to Flash-Lite |
+| YouTube board-moments mode (`/studio?source=youtube`) | ✅ scan + clip read + compose each verified; full run blocked by free-tier 503s overnight |
+| Engine tuning sliders (setup → Advanced) | ✅ |
 | Real phone footage | ⚠️ **untested** — the #1 thing to do first tomorrow |
 
-Pages: `/` landing · `/studio` live camera · `/studio?source=file` recording · `/studio?sample=1` bundled sample · `/studio?camera=simulated` simulated live camera · `/quick` old YouTube quick mode · `/lab` sample-video generator (dev only).
+Pages: `/` landing · `/studio` live camera · `/studio?source=file` recording · `/studio?sample=1` bundled sample · `/studio?camera=simulated` simulated live camera · `/studio?source=youtube` YouTube board moments · `/quick` old quick mode · `/lab` sample-video generator (dev only).
+
+**Free-tier warning:** overnight the AI Studio key hit its daily quota on `gemini-3.8-flash` (429) and the other Flash models were overloaded (503). The app falls back model-by-model and cools down busy models, but it is slow and flaky. Tomorrow run on **Vertex with the credits** — that is also a track requirement.
 
 Run locally: `npm run dev` (Node 22: `/opt/homebrew/opt/node@22/bin`), open http://localhost:3000.
 
@@ -35,7 +41,7 @@ Run locally: `npm run dev` (Node 22: `/opt/homebrew/opt/node@22/bin`), open http
 
 **11:00–11:45 — Google Cloud (track requirement: must use the provided credits)**
 1. Redeem the credits, create/select the project.
-2. `cd ~/IdeaProjects/chalkmark && PROJECT=<project-id> ./scripts/deploy-cloud-run.sh`
+2. `cd ~/IdeaProjects/chalkmark && PROJECT=<project-id> GEMINI_API_KEY=<your AI Studio key, optional: enables Gemma> ./scripts/deploy-cloud-run.sh`
    - enables Vertex AI, Cloud Run, Firestore, Cloud Storage, Cloud Build; creates the bucket + service account; deploys; prints the URL.
 3. Open the URL → `/studio?sample=1` → Scan → Save & share. That one run proves Vertex (Gemini) + Firestore + Storage on credits.
    - If a model 404s on Vertex, the fallback chain moves on automatically; check logs: `gcloud run services logs read chalkmark --region us-central1`.
@@ -70,7 +76,8 @@ Have open in tabs: deployed `/studio` (camera framed), a finished shared notes l
 2. **Live (2 min)** — Start capturing. Write `f(x) = x² + 3x`, draw axes + a curve, sketch a car. *Stand in front of it* → point at **Board memory**: "it sees straight through me." Switch to **When written** (colored by time). **Erase** → a card pops in: *Saved before erase*, Gemini already reading it. Write one more line. **Finish & write notes.**
 3. **The notes (1 min)** — typeset equations, the graph and the car are *your own ink*, cleaned, with the time each was written. "Print/PDF" works. **Save & share → QR** — judges scan it on their phones.
 4. **Why it's smart (1 min)** — "We never send the video. On the device we flatten the board, trust a patch only when it's still, looks like board, and isn't next to a person — so the lecturer never enters memory. Every patch knows when it was written, and the instant unsaved ink is about to be erased, we keep the board. So the number of images depends on the lecture, not a frame rate. Gemini reads those few boards at full resolution with what was being said, so messy handwriting gets resolved by context. Look at the ledger: frames analyzed on-device, a handful of boards, 0 MB of video uploaded."
-5. **Google stack (20 s)** — Gemini on **Vertex AI** (credits), **Cloud Run**, **Firestore**, **Cloud Storage**.
+5. **Google stack (20 s)** — Gemini on **Vertex AI** (credits), **Cloud Run**, **Firestore**, **Cloud Storage**, **MediaPipe** (on-device lecturer mask), **Gemma 4** (instant board titles; open weights → on-device next).
+   - Only a YouTube link? Show `/studio?source=youtube`: "Gemini scans the whole lecture cheaply to find the last second before each erase, then re-reads only those seconds at high resolution — same idea as the camera engine."
 6. **Responsible AI (20 s)** — consent + privacy + accessibility (see Q&A).
 
 If something breaks live: switch the camera dropdown to **Simulated camera** (same pipeline, sample lecture) or open the backup share link.
@@ -98,7 +105,7 @@ If something breaks live: switch the camera dropdown to **Simulated camera** (sa
 GDG — Build with AI for Social Good
 - [x] Gemini is core (reads every board, transcribes, composes notes) — not a chatbot
 - [x] Clear social problem (access to lecture content: disability, ESL, working students)
-- [ ] ≥1 Google tool besides Gemini — Cloud Run, Firestore, Cloud Storage, Vertex AI (**after deploy**)
+- [ ] ≥1 Google tool besides Gemini — Cloud Run, Firestore, Cloud Storage, Vertex AI (**after deploy**); MediaPipe and Gemma already in the app
 - [ ] Uses the provided credits (**after deploy**)
 - [x] Working demo
 
@@ -119,17 +126,17 @@ Point any camera at a whiteboard or chalkboard. Chalkmark removes the lecturer, 
 
 How it works: on-device board memory (homography flattening, stable-cell compositing that ignores the lecturer, per-cell ink birth times, snapshot-before-erase), then Gemini on Vertex AI reads each saved board at full resolution with the spoken context, transcribes speech, and organises the notes. Figures are the lecturer's real ink, cleaned. Notes are saved in Firestore + Cloud Storage and shared by link/QR; the app runs on Cloud Run.
 
-Built with: Next.js, TypeScript, Gemini (Vertex AI), Cloud Run, Firestore, Cloud Storage, Mediabunny/WebCodecs, KaTeX.
+Built with: Next.js, TypeScript, Gemini (Vertex AI), Gemma 4 (Gemini API), MediaPipe, Cloud Run, Firestore, Cloud Storage, Mediabunny/WebCodecs, KaTeX.
 
 AI tools disclosure: built with Claude Code (Anthropic) as a coding assistant. The project grew from a prototype started before the event (organizers confirmed this was fine).
 
 ---
 
-## 7. Optional extras (only if ahead of schedule)
+## 7. Extras already built (mention them, don't depend on them)
 
-- **MediaPipe person mask** — the engine already accepts a `personMask` (`BoardEngine.ingest(frame, t, mask)`); wiring MediaPipe's selfie segmenter makes occlusion bulletproof on chalkboards with dark clothes, and is another Google tool.
-- **Gemma 4 captions** — `caption` task in `lib/ai/models.ts` already prefers `gemma-4-31b-it` via the Gemini API; a tiny route + a caption on each board card qualifies for the Gemma track.
-- **YouTube board memory** — two-pass Gemini: find board-peak times at low resolution, then re-read those few seconds at high resolution (needs `videoMetadata` clipping via raw REST).
+- **MediaPipe lecturer mask** — selfie segmenter runs on-device (`lib/client/person.ts`); cells touching a person are never trusted. Toggle in setup.
+- **Gemma 4 board titles** — each saved board gets an instant title from `gemma-4-26b-a4b-it` (Gemini API). MLH Gemma track: "uses a Gemma model through the Gemini API" + named in README ✅. Needs `GOOGLE_GENERATIVE_AI_API_KEY` on Cloud Run (deploy script `GEMINI_API_KEY=`).
+- **YouTube board moments** — `/studio?source=youtube`. Pass 1 low-res scan finds board peaks; pass 2 re-reads 6-second clips at high resolution via `videoMetadata` (raw REST, `lib/ai/gemini-rest.ts`). No pixels → figures are described, with a "watch it on the board" link; times marked ≈.
 
 ## 8. Honest limitations to say out loud if asked
 Still camera required · sliding/multi-panel boards not handled · faint chalk at distance is limited by the camera · free-tier Gemini is flaky (that's why we run on Vertex) · real-classroom tuning is ongoing.

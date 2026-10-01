@@ -27,6 +27,8 @@ Speech: live mode records the microphone in self-contained 75-second segments th
 | **Cloud Run** | hosts the app (`Dockerfile`, `scripts/deploy-cloud-run.sh`) |
 | **Firestore** | saved notes documents |
 | **Cloud Storage** | board images and figure crops (never video) |
+| **MediaPipe** (on-device) | person segmentation so the lecturer never enters board memory |
+| **Gemma 4** (`gemma-4-26b-a4b-it` via the Gemini API) | instant topic titles for each saved board while the full Gemini read runs |
 
 Locally, without `GOOGLE_VERTEX_PROJECT`, the app uses a Google AI Studio key (`GOOGLE_GENERATIVE_AI_API_KEY` in `.env.local`) and stores shared notes in `.data/`.
 
@@ -41,7 +43,8 @@ npm run dev
 
 - `/studio`: live camera (an iPhone works through Continuity Camera; a "Simulated camera" plays the sample lecture)
 - `/studio?source=file`: scan a recording, or `/studio?sample=1` for the bundled sample lecture
-- `/l/<id>`: shared notes · `/quick`: older YouTube quick mode (Gemini watches the video directly)
+- `/studio?source=youtube`: YouTube board moments (Gemini scans at low resolution for the last second before each erase, then re-reads only those seconds at high resolution)
+- `/l/<id>`: shared notes · `/quick`: older quick mode
 
 Deploy: `PROJECT=<gcp-project> ./scripts/deploy-cloud-run.sh`
 
