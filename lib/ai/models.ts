@@ -15,13 +15,14 @@ import { z } from "zod";
 export type Task = "read" | "transcribe" | "compose" | "quick" | "caption";
 export type ProviderName = "vertex" | "google";
 
-const STRONG = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"];
-const LIGHT = ["gemini-3.5-flash-lite", "gemini-3.5-flash"];
+const STRONG = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"];
+const LIGHT = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
+// Strongest first; lite models are a last resort so a busy or rate-limited model never ends a demo.
 const TASK_MODELS: Record<Task, string[]> = {
-  read: STRONG,
-  transcribe: STRONG,
-  compose: STRONG,
+  read: [...STRONG, ...LIGHT],
+  transcribe: [...STRONG, ...LIGHT],
+  compose: [...STRONG, ...LIGHT],
   quick: STRONG,
   // Optional open-weights path (Gemma via the Gemini API) for cheap live captions.
   caption: [process.env.GEMMA_MODEL?.trim() || "gemma-4-31b-it", ...LIGHT],

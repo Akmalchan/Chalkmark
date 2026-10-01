@@ -65,7 +65,41 @@ export async function loadVideo(video: HTMLVideoElement, src: string): Promise<v
   if (!Number.isFinite(video.duration) || video.duration <= 0) throw new Error("This video has no readable duration.");
 }
 
+/** Plays the bundled sample lecture as if it were a live camera + microphone (demo fallback, testing). */
+export const SIMULATED_CAMERA = "chalkmark-simulated";
+let simulatedSource: HTMLVideoElement | null = null;
+
+async function simulatedStream(): Promise<MediaStream> {
+  simulatedSource?.pause();
+  const source = document.createElement("video");
+  source.src = "/demo/sample-lecture.mp4";
+  source.playsInline = true;
+  source.loop = true;
+  // Near-silent rather than muted: Chrome pauses muted ("video-only") media in background tabs.
+  source.volume = 0.0001;
+  try { await source.play(); }
+  catch { source.muted = true; await source.play(); }
+  simulatedSource = source;
+  const capture = (source as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
+  if (!capture.getVideoTracks().length) await waitFor(capture, "addtrack", 3000);
+  return capture;
+}
+
+/** Start the simulated lecture from the beginning, so a live capture sees the whole thing. */
+export function restartSimulatedCamera() {
+  if (simulatedSource) simulatedSource.currentTime = 0;
+}
+
 export async function startCamera(video: HTMLVideoElement, deviceId?: string, withAudio = true): Promise<MediaStream> {
+  if (deviceId === SIMULATED_CAMERA) {
+    const stream = await simulatedStream();
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    await video.play();
+    if (!video.videoWidth) await waitFor(video, "loadedmetadata", 5000);
+    return stream;
+  }
   const stream = await navigator.mediaDevices.getUserMedia({
     video: { deviceId: deviceId ? { exact: deviceId } : undefined, width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: deviceId ? undefined : "environment" },
     audio: withAudio ? { echoCancellation: true, noiseSuppression: true, channelCount: 1 } : false,

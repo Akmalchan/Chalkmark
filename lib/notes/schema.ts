@@ -111,4 +111,6 @@ export type NotesDoc = {
   transcript: TranscriptSegment[];
   stats: NotesStats;
   warnings: string[];
+  /** False when Gemini's section pass failed and blocks were laid out in time order instead. */
+  composed?: boolean;
 };

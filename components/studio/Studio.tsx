@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
-import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, SegmentedRecorder, seekTo, startCamera } from "@/lib/client/media";
+import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
 import { formatClock } from "@/lib/notes/assemble";
 import type { NotesDoc } from "@/lib/notes/schema";
@@ -19,7 +19,7 @@ type Phase = "setup" | "running" | "finishing" | "done";
 
 const LIVE_INTERVAL_MS = 330;
 
-export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sampleSrc?: string }) {
+export function Studio({ initialSource, sampleSrc, simulated = false }: { initialSource: Source; sampleSrc?: string; simulated?: boolean }) {
   const [source, setSource] = useState<Source>(initialSource);
   const [phase, setPhase] = useState<Phase>("setup");
   const video = useRef<HTMLVideoElement>(null);
@@ -55,19 +55,23 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
 
   /* ---------- sources ---------- */
 
+  const openRequest = useRef(0);
   const openCamera = useCallback(async (deviceId?: string) => {
+    const request = ++openRequest.current;
     setError("");
     stream.current?.getTracks().forEach(track => track.stop());
     try {
       try { stream.current = await startCamera(video.current!, deviceId, true); }
-      catch { stream.current = await startCamera(video.current!, deviceId, false); }
-      setQuad(null);
+      catch (cause) { if (deviceId === SIMULATED_CAMERA) throw cause; stream.current = await startCamera(video.current!, deviceId, false); }
+      if (request !== openRequest.current) return;
+      setQuad(deviceId === SIMULATED_CAMERA ? (SAMPLE_QUAD as Quad) : null);
       adoptVideoSize();
-      setCameras(await listCameras());
+      setCameras(await listCameras().catch(() => []));
     } catch (cause) {
+      if (request !== openRequest.current) return;
       setError(cause instanceof Error && cause.name === "NotAllowedError"
-        ? "Camera access was blocked. Allow the camera for this site, or upload a recording instead."
-        : "No camera could be opened. Plug one in (an iPhone works through Continuity Camera) or upload a recording.");
+        ? "Camera access was blocked. Allow the camera for this site, use the simulated camera, or upload a recording."
+        : "No camera could be opened. Plug one in (an iPhone works through Continuity Camera), use the simulated camera, or upload a recording.");
     }
   }, [adoptVideoSize]);
 
@@ -101,7 +105,7 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
   }, [openMedia]);
 
   useEffect(() => {
-    if (source === "camera") void openCamera();
+    if (source === "camera") { if (simulated) setCameraId(SIMULATED_CAMERA); void openCamera(simulated ? SIMULATED_CAMERA : undefined); }
     else if (sampleSrc) void loadSample(sampleSrc);
     return () => { stream.current?.getTracks().forEach(track => track.stop()); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,6 +130,7 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
 
   const startLive = useCallback(async () => {
     const element = video.current!;
+    if (cameraId === SIMULATED_CAMERA) restartSimulatedCamera();
     const grabber = new FrameGrabber(element);
     const active = new LectureSession("camera", grabber.toCapture(quad!), { stableSeconds: 1.2 }, title);
     setSession(active);
@@ -144,7 +149,7 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
       setElapsed(clock());
       await new Promise(resolve => setTimeout(resolve, Math.max(10, LIVE_INTERVAL_MS - (performance.now() - begin))));
     }
-  }, [quad, title, useAudio]);
+  }, [quad, title, useAudio, cameraId]);
 
   const startFile = useCallback(async () => {
     const element = video.current!;
@@ -183,9 +188,21 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
   void revision;
 
   if (phase === "done" && doc) {
+    const retry = async () => {
+      setStage("Writing your notes");
+      const next = await session!.compose();
+      setDoc(next);
+      setStage("");
+    };
     return (
       <main className="studio-done">
         <NotesActions doc={doc} files={session!.files} urls={urls} onRestart={() => window.location.reload()} />
+        {doc.composed === false && (
+          <div className="retry-banner no-print">
+            <span>Gemini was busy when writing the section summaries.</span>
+            <button className="primary" disabled={Boolean(stage)} onClick={retry}>{stage ? "Writing…" : "Retry writing notes"}</button>
+          </div>
+        )}
         <NotesPaper doc={doc} urls={urls} />
       </main>
     );
@@ -250,10 +267,12 @@ export function Studio({ initialSource, sampleSrc }: { initialSource: Source; sa
               <li><b>Keep the camera still.</b> A phone on a desk or tripod is perfect. Walk, write and erase freely.</li>
               <li><b>Teach.</b> Every board state is saved right before it gets erased, and read by Gemini while you keep going.</li>
             </ol>
-            {source === "camera" && cameras.length > 1 && (
+            {source === "camera" && (
               <label className="field"><span>Camera</span>
-                <select value={cameraId} onChange={event => { setCameraId(event.target.value); void openCamera(event.target.value); }}>
+                <select value={cameraId} onChange={event => { setCameraId(event.target.value); void openCamera(event.target.value || undefined); }}>
+                  {!cameras.some(camera => camera.deviceId === cameraId) && cameraId !== SIMULATED_CAMERA && <option value={cameraId}>Default camera</option>}
                   {cameras.map(camera => <option key={camera.deviceId} value={camera.deviceId}>{camera.label || "Camera"}</option>)}
+                  <option value={SIMULATED_CAMERA}>Simulated camera (sample lecture)</option>
                 </select>
               </label>
             )}

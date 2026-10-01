@@ -7,5 +7,5 @@ export default async function StudioPage({ searchParams }: { searchParams: Promi
   const params = await searchParams;
   const source = params.source === "file" ? "file" : "camera";
   const sample = params.sample === "1" ? "/demo/sample-lecture.mp4" : undefined;
-  return <Studio initialSource={sample ? "file" : source} sampleSrc={sample} />;
+  return <Studio initialSource={sample ? "file" : source} sampleSrc={sample} simulated={params.camera === "simulated"} />;
 }

@@ -26,6 +26,7 @@ type Usage = { inputTokens: number; outputTokens: number };
 const VIDEO_TOKENS_PER_SECOND = 132;
 /** Blocks whose measured ink is mostly already saved in an earlier board are re-reads, not new content. */
 const MIN_FRESHNESS = 0.3;
+const COMPOSE_WARNING = "Gemini could not organise these notes into sections, so board content is shown in the order it was written:";
 
 async function postForm<T>(url: string, form: FormData): Promise<T> {
   const response = await fetch(url, { method: "POST", body: form });
@@ -202,11 +203,19 @@ export class LectureSession {
     if (last) this.track(this.handleSnapshot(last));
     onStage?.("Reading every board with Gemini");
     while (this.pending.size) await Promise.allSettled([...this.pending]);
+    for (const board of this.boards) if (board.status === "error") board.blocks.length = 0;
+    this.paperImages.clear();
+    onStage?.("Writing your notes");
+    return this.compose();
+  }
 
+  /** Gemini's section pass. Safe to call again if it failed (e.g. the model was busy). */
+  async compose(): Promise<NotesDoc> {
     const blocks = this.boards.flatMap(board => board.blocks)
       .sort((a, b) => (a.writtenAt ?? Infinity) - (b.writtenAt ?? Infinity));
-    onStage?.("Writing your notes");
     let composition: Composition;
+    let composed = true;
+    const warnings = this.warnings.filter(warning => !warning.startsWith(COMPOSE_WARNING));
     try {
       const response = await fetch("/api/compose", {
         method: "POST",
@@ -222,11 +231,12 @@ export class LectureSession {
       this.addUsage(payload.usage, payload.model);
       composition = payload.composition;
     } catch (error) {
-      this.warnings.push(`Notes were organised without Gemini's section pass: ${error instanceof Error ? error.message : "unknown error"}.`);
+      composed = false;
+      warnings.push(`${COMPOSE_WARNING} ${error instanceof Error ? error.message : "unknown error"}`);
       composition = { title: this.title || "Lecture notes", course: "Lecture", summary: "", duplicateBlockIds: [], sections: [{ title: "Board notes", blockIds: blocks.map(b => b.id), explanation: [], takeaways: [] }] };
     }
+    this.warnings = warnings;
 
-    for (const board of this.boards) if (board.status === "error") board.blocks.length = 0;
     const doc: NotesDoc = {
       version: 2,
       title: composition.title,
@@ -236,7 +246,8 @@ export class LectureSession {
       sections: assembleSections(composition, blocks),
       boards: this.boards.map(board => board.page),
       transcript: this.transcript,
-      warnings: this.warnings,
+      warnings,
+      composed,
       stats: {
         source: this.source,
         durationSeconds: Math.round(this.durationSeconds),
@@ -250,7 +261,6 @@ export class LectureSession {
         processingSeconds: Math.round((performance.now() - this.startedAt) / 1000),
       },
     };
-    this.paperImages.clear();
     this.emit();
     return doc;
   }
