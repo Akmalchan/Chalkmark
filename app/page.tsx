@@ -29,7 +29,7 @@ export default function Home() {
           <div className="visual-arrow"><span>board<br />memory</span>→</div>
           <div className="memory-stack"><div /><div /><div className="kept-frame"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg><span>saved before erase</span></div></div>
           <div className="visual-arrow">→</div>
-          <div className="paper-output"><small>CALCULUS I</small><b>Derivatives &amp;<br />the power rule</b><i /><i /><i className="short" /><span>0 MB video uploaded</span></div>
+          <div className="paper-output"><small>CALCULUS I</small><b>Derivatives<br />&amp; power rule</b><i /><i /><i className="short" /><span>0 MB video uploaded</span></div>
         </div>
       </section>
 

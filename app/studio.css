@@ -101,3 +101,11 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .retry-banner button { padding: 8px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 650; cursor: pointer; }
 .toggle em { font-style: normal; color: var(--muted); }
 .mask-chip { padding: 3px 8px; border-radius: 10px; background: #e7f5c4; color: #3d5a17; }
+.notes-actions button, .studio-bar button { white-space: nowrap; }
+@media (max-width: 640px) {
+  .notes-actions { height: auto; min-height: 56px; padding: 8px 12px; gap: 8px; }
+  .notes-actions .wordmark { font-size: 0; gap: 0; }
+  .notes-actions-buttons { gap: 5px; }
+  .notes-actions button { padding: 7px 10px; font-size: 11.5px; }
+  .studio-done .paper { margin-top: 12px; border-radius: 0; border-left: 0; border-right: 0; }
+}
