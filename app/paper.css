@@ -105,3 +105,5 @@
 .paper-equation .equation { color: #1b2420; text-align: center; overflow-x: auto; }
 .paper-equation .equation .katex { font-size: 1.28em; }
 .paper-equation .equation figcaption { margin-top: 2px; font-family: var(--font-sans), sans-serif; font-size: 12px; letter-spacing: 0; text-transform: none; color: #74807a; }
+.paper-figure.described { grid-template-columns: 1fr; padding: 14px 18px; border: 1px dashed #d9d4c7; border-radius: 10px; background: #fcfbf7; }
+.watch-link { width: fit-content; margin-top: 4px; font-family: var(--font-sans); font-size: 12px; font-weight: 650; color: #a5462d; }

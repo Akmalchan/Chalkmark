@@ -7,6 +7,8 @@ import { DEFAULT_CONFIG, type EngineConfig } from "@/lib/board/engine";
 import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
 import { PersonMasker } from "@/lib/client/person";
+import { runYouTube } from "@/lib/client/youtube";
+import { youtubeId } from "@/lib/source-metadata";
 import { formatClock } from "@/lib/notes/assemble";
 import type { NotesDoc } from "@/lib/notes/schema";
 import { MathText } from "@/components/math";
@@ -16,7 +18,7 @@ import { BoardMemoryView, EngineOverlay, type MemoryMode } from "./LiveViews";
 import { NotesActions } from "./NotesActions";
 import { NotesPaper } from "@/components/NotesPaper";
 
-type Source = "camera" | "file";
+type Source = "camera" | "file" | "youtube";
 type Phase = "setup" | "running" | "finishing" | "done";
 
 const LIVE_INTERVAL_MS = 330;
@@ -44,6 +46,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
   const [tuning, setTuning] = useState<Partial<EngineConfig>>({});
   const [maskActive, setMaskActive] = useState(false);
   const [title, setTitle] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
   const [memoryMode, setMemoryMode] = useState<MemoryMode>("photo");
   const [tick, setTick] = useState(0);
   const [stage, setStage] = useState("");
@@ -202,6 +205,21 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     await finish(active);
   }, [quad, title, media, useAudio, usePersonMask, tuning, finish]);
 
+  const startYouTube = useCallback(async () => {
+    setError("");
+    setPhase("finishing");
+    try {
+      const notes = await runYouTube(youtubeUrl.trim(), setStage);
+      if (title.trim()) notes.title = title.trim();
+      setUrls({});
+      setDoc(notes);
+      setPhase("done");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "This video could not be read.");
+      setPhase("setup");
+    } finally { setStage(""); }
+  }, [youtubeUrl, title]);
+
   /* ---------- render ---------- */
 
   const revision = useSyncExternalStore(
@@ -220,8 +238,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     };
     return (
       <main className="studio-done">
-        <NotesActions doc={doc} files={session!.files} urls={urls} onRestart={() => window.location.reload()} />
-        {doc.composed === false && (
+        <NotesActions doc={doc} files={session?.files ?? new Map()} urls={urls} onRestart={() => window.location.reload()} />
+        {doc.composed === false && session && (
           <div className="retry-banner no-print">
             <span>Gemini was busy when writing the section summaries.</span>
             <button className="primary" disabled={Boolean(stage)} onClick={retry}>{stage ? "Writing…" : "Retry writing notes"}</button>
@@ -243,6 +261,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
           <div className="source-switch" role="tablist">
             <button className={source === "camera" ? "active" : ""} onClick={() => setSource("camera")}>Live camera</button>
             <button className={source === "file" ? "active" : ""} onClick={() => { stream.current?.getTracks().forEach(track => track.stop()); setSource("file"); setVideoSize({ width: 0, height: 0 }); }}>Recorded video</button>
+            <button className={source === "youtube" ? "active" : ""} onClick={() => { stream.current?.getTracks().forEach(track => track.stop()); setSource("youtube"); setVideoSize({ width: 0, height: 0 }); }}>YouTube link</button>
           </div>
         ) : (
           <div className="live-status">
@@ -269,6 +288,13 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
             <video ref={video} playsInline muted onLoadedMetadata={() => { if (source === "camera") adoptVideoSize(); }} />
             {phase === "setup" && ready && <CornerPicker width={videoSize.width} height={videoSize.height} quad={quad!} onChange={setQuad} />}
             {phase !== "setup" && quad && <EngineOverlay engine={session?.engine ?? null} quad={quad} width={videoSize.width} height={videoSize.height} tick={tick} />}
+            {source === "youtube" && (
+              <div className="youtube-preview">
+                {youtubeId(youtubeUrl.trim())
+                  ? <iframe src={`https://www.youtube-nocookie.com/embed/${youtubeId(youtubeUrl.trim())}?rel=0`} title="Lecture preview" allow="encrypted-media; picture-in-picture" allowFullScreen />
+                  : <div><strong>Paste a public lecture link</strong><span>Gemini scans it at low resolution to find every moment a board is fullest, then re-reads only those seconds at high resolution. Nothing is downloaded.</span></div>}
+              </div>
+            )}
             {!videoSize.width && source === "file" && (
               <label className="file-drop">
                 <input type="file" accept="video/*" onChange={event => { const file = event.target.files?.[0]; if (file) void openMedia(file, file.name); }} />
@@ -278,10 +304,25 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
               </label>
             )}
           </div>
-          <div className="panel-label">{phase === "setup" ? "Drag the corners onto the board" : "Camera · red = ignored (lecturer or motion)"}</div>
+          <div className="panel-label">{source === "youtube" ? "YouTube · board moments are found by Gemini" : phase === "setup" ? "Drag the corners onto the board" : "Camera · red = ignored (lecturer or motion)"}</div>
         </section>
 
         {phase === "setup" ? (
+          source === "youtube" ? (
+          <aside className="setup-panel">
+            <h1>Read a lecture from YouTube</h1>
+            <ol className="setup-steps">
+              <li><b>Scan.</b> Gemini watches the whole lecture at low resolution and marks the last second before each board is erased.</li>
+              <li><b>Zoom in.</b> Only those few seconds are re-read at high resolution, with what was being said.</li>
+              <li><b>Write.</b> The same clean notes as live capture. Times are model-estimated (≈), not measured.</li>
+            </ol>
+            <label className="field"><span>Public YouTube link</span><input value={youtubeUrl} onChange={event => setYoutubeUrl(event.target.value)} placeholder="https://www.youtube.com/watch?v=…" inputMode="url" /></label>
+            <label className="field"><span>Lecture title <em>(optional)</em></span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g. Calculus I — derivatives" /></label>
+            {error && <div className="error-box"><span>!</span><p>{error}</p></div>}
+            <button className="start-button" disabled={!youtubeId(youtubeUrl.trim())} onClick={startYouTube}>Find &amp; read the boards</button>
+            <p className="setup-privacy">For the full pipeline (lecturer removed, real ink figures, measured times) use a recording or a live camera.</p>
+          </aside>
+          ) : (
           <aside className="setup-panel">
             <h1>{source === "camera" ? "Point a camera at the board" : "Scan a recorded lecture"}</h1>
             <ol className="setup-steps">
@@ -326,6 +367,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
             </button>
             <p className="setup-privacy">The video never leaves this device. Chalkmark sends Gemini only the cleaned board images it keeps{useAudio ? " and compressed speech" : ""}.</p>
           </aside>
+          )
         ) : (
           <section className="panel memory-panel">
             <div className="memory-frame"><BoardMemoryView engine={session?.engine ?? null} tick={tick} mode={memoryMode} /></div>
@@ -343,7 +385,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
 
       {phase === "finishing" && (
         <div className="finishing-overlay" role="status">
-          <div><span className="spinner" /><strong>{stage || "Finishing"}</strong><p>{boards.length} board states · {blocksRead} items read so far</p></div>
+          <div><span className="spinner" /><strong>{stage || "Finishing"}</strong>{session ? <p>{boards.length} board states · {blocksRead} items read so far</p> : <p>A 30-minute lecture takes a minute or two.</p>}</div>
         </div>
       )}
     </main>

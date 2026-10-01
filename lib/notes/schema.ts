@@ -115,4 +115,9 @@ export type NotesDoc = {
   warnings: string[];
   /** False when Gemini's section pass failed and blocks were laid out in time order instead. */
   composed?: boolean;
+  /** "measured" = write times come from the board engine; "estimated" = model-estimated (YouTube mode). */
+  timing?: "measured" | "estimated";
+  /** "summary" when speech is summarised per board (YouTube mode) rather than transcribed. */
+  transcriptKind?: "verbatim" | "summary";
+  source?: { kind: "youtube"; videoId: string };
 };

@@ -20,6 +20,8 @@ export function NotesPaper({ doc, urls }: Props) {
   const created = new Date(doc.createdAt);
   const savings = doc.stats.videoTokensEstimate > 0 && doc.stats.inputTokens > 0
     ? doc.stats.videoTokensEstimate / doc.stats.inputTokens : null;
+  const approx = doc.timing === "estimated" ? "≈" : "";
+  const youtube = doc.source?.kind === "youtube" ? doc.source.videoId : null;
 
   return (
     <article className="paper">
@@ -29,13 +31,23 @@ export function NotesPaper({ doc, urls }: Props) {
         {doc.summary && <p className="paper-summary"><MathText text={doc.summary} /></p>}
       </header>
 
-      <div className="paper-ledger no-print" aria-label="How these notes were made">
-        <div><strong>{doc.stats.boards}</strong><span>board states kept</span></div>
-        <div><strong>{doc.stats.blocks}</strong><span>items read from the board</span></div>
-        <div><strong>{doc.stats.framesAnalyzed}</strong><span>frames analysed on-device</span></div>
-        <div><strong>{doc.stats.inputTokens ? `${(doc.stats.inputTokens / 1000).toFixed(1)}k` : "—"}</strong><span>{savings && savings >= 1.5 ? `Gemini tokens · ${savings.toFixed(savings < 10 ? 1 : 0)}× fewer than sending the video` : "Gemini input tokens used"}</span></div>
-        <div className="ledger-zero"><strong>0 MB</strong><span>video uploaded</span></div>
-      </div>
+      {youtube ? (
+        <div className="paper-ledger no-print" aria-label="How these notes were made">
+          <div><strong>{doc.stats.boards}</strong><span>board moments found by a low-res scan</span></div>
+          <div><strong>{doc.stats.blocks}</strong><span>items read at high resolution</span></div>
+          <div><strong>{doc.stats.durationSeconds ? formatClock(doc.stats.durationSeconds) : "—"}</strong><span>lecture length</span></div>
+          <div><strong>{doc.stats.inputTokens ? `${(doc.stats.inputTokens / 1000).toFixed(1)}k` : "—"}</strong><span>Gemini input tokens used</span></div>
+          <div className="ledger-zero"><strong>0 MB</strong><span>downloaded · read from YouTube</span></div>
+        </div>
+      ) : (
+        <div className="paper-ledger no-print" aria-label="How these notes were made">
+          <div><strong>{doc.stats.boards}</strong><span>board states kept</span></div>
+          <div><strong>{doc.stats.blocks}</strong><span>items read from the board</span></div>
+          <div><strong>{doc.stats.framesAnalyzed}</strong><span>frames analysed on-device</span></div>
+          <div><strong>{doc.stats.inputTokens ? `${(doc.stats.inputTokens / 1000).toFixed(1)}k` : "—"}</strong><span>{savings && savings >= 1.5 ? `Gemini tokens · ${savings.toFixed(savings < 10 ? 1 : 0)}× fewer than sending the video` : "Gemini input tokens used"}</span></div>
+          <div className="ledger-zero"><strong>0 MB</strong><span>video uploaded</span></div>
+        </div>
+      )}
 
       {doc.warnings.length > 0 && <aside className="paper-warnings no-print">{doc.warnings.map((warning, i) => <p key={i}>{warning}</p>)}</aside>}
 
@@ -44,10 +56,10 @@ export function NotesPaper({ doc, urls }: Props) {
           <div className="paper-section-head">
             <span className="paper-section-number">{String(index + 1).padStart(2, "0")}</span>
             <h2><MathText text={section.title} /></h2>
-            {section.start !== null && <time>written {formatClock(section.start)}{section.end !== null && section.end - section.start >= 5 ? `–${formatClock(section.end)}` : ""}</time>}
+            {section.start !== null && <time>{youtube ? "around" : "written"} {approx}{formatClock(section.start)}{section.end !== null && section.end - section.start >= 5 ? `–${approx}${formatClock(section.end)}` : ""}</time>}
           </div>
           {section.explanation.length > 0 && <div className="paper-explanation">{section.explanation.map((paragraph, i) => <p key={i}><MathText text={paragraph} /></p>)}</div>}
-          <div className="paper-blocks">{section.blocks.map(block => <Block key={block.id} block={block} urls={urls} />)}</div>
+          <div className="paper-blocks">{section.blocks.map(block => <Block key={block.id} block={block} urls={urls} approx={approx} youtube={youtube} />)}</div>
           {section.takeaways.length > 0 && (
             <aside className="paper-takeaways"><span>Remember</span><ul>{section.takeaways.map((item, i) => <li key={i}><MathText text={item} /></li>)}</ul></aside>
           )}
@@ -77,7 +89,7 @@ export function NotesPaper({ doc, urls }: Props) {
       {doc.transcript.length > 0 && (
         <section className="paper-appendix">
           <h3>
-            Speech <small>timestamped transcript of what was said</small>
+            Speech <small>{doc.transcriptKind === "summary" ? "what was explained while each board was built (summarised)" : "timestamped transcript of what was said"}</small>
             <button className="no-print" onClick={() => setTranscriptOpen(open => !open)}>{transcriptOpen ? "Hide" : `Show ${doc.transcript.length} lines`}</button>
           </h3>
           {transcriptOpen && <div className="paper-transcript">{doc.transcript.map((segment, i) => <p key={i}><time>{formatClock(segment.start)}</time><MathText text={segment.text} /></p>)}</div>}
@@ -89,7 +101,7 @@ export function NotesPaper({ doc, urls }: Props) {
   );
 }
 
-function Block({ block, urls }: { block: NoteBlock; urls: Record<string, string> }) {
+function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Record<string, string>; approx: string; youtube: string | null }) {
   const uncertain = block.legibility !== "clear";
   if (block.kind === "heading") return <h3 className="paper-heading"><MathText text={block.content} /></h3>;
   if (block.kind === "equation") {
@@ -114,10 +126,23 @@ function Block({ block, urls }: { block: NoteBlock; urls: Record<string, string>
           {block.graph && <div className="paper-redraw"><LectureVisual visual={{ kind: "coordinate_graph", title: "Clean redraw", description: block.content, panels: [block.graph], table: null, sourceTimestampSeconds: null, fidelity: "qualitative", uncertainty: null, nodes: [], edges: [] }} /></div>}
         </div>
         <figcaption>
-          <span className="paper-figure-kind">{KIND_LABEL[block.kind] ?? "From the board"}{block.writtenAt !== null && ` · ${formatClock(block.writtenAt)}`}</span>
+          <span className="paper-figure-kind">{KIND_LABEL[block.kind] ?? "From the board"}{block.writtenAt !== null && ` · ${approx}${formatClock(block.writtenAt)}`}</span>
           <strong><MathText text={block.content} /></strong>
           {block.detail && block.kind !== "text" && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
           {block.kind === "text" && <span className="paper-figure-detail">Handwriting was hard to read, so the original ink is shown.</span>}
+        </figcaption>
+      </figure>
+    );
+  }
+  if (block.kind === "graph" || block.kind === "diagram" || block.kind === "drawing") {
+    // No pixels to crop (YouTube mode): describe the figure and link to the moment it is on screen.
+    return (
+      <figure className="paper-figure described">
+        <figcaption>
+          <span className="paper-figure-kind">{KIND_LABEL[block.kind]}{block.writtenAt !== null && ` · ${approx}${formatClock(block.writtenAt)}`}</span>
+          <strong><MathText text={block.content} /></strong>
+          {block.detail && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
+          {youtube && block.writtenAt !== null && <a className="watch-link no-print" href={`https://www.youtube.com/watch?v=${youtube}&t=${Math.max(0, Math.round(block.writtenAt) - 3)}s`} target="_blank" rel="noreferrer">Watch it on the board ↗</a>}
         </figcaption>
       </figure>
     );

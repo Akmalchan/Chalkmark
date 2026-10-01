@@ -23,7 +23,7 @@ const TASK_MODELS: Record<Task, string[]> = {
   read: [...STRONG, ...LIGHT],
   transcribe: [...STRONG, ...LIGHT],
   compose: [...STRONG, ...LIGHT],
-  quick: STRONG,
+  quick: [...STRONG, ...LIGHT],
   // Optional open-weights path (Gemma via the Gemini API) for cheap live captions.
   caption: [process.env.GEMMA_MODEL?.trim() || "gemma-4-26b-a4b-it", "gemma-4-31b-it", ...LIGHT],
 };

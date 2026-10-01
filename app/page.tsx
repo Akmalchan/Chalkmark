@@ -49,7 +49,7 @@ export default function Home() {
         <div><h3>For learning in a second language</h3><p>Typeset math and a transcript you can read at your own pace, linked to when it was written.</p></div>
       </section>
 
-      <footer className="landing-footer"><span>Built at SF Hacks × GDG with Gemini on Google Cloud.</span><div><Link href="/quick">YouTube link? Quick mode →</Link></div></footer>
+      <footer className="landing-footer"><span>Built at SF Hacks × GDG with Gemini on Google Cloud.</span><div><Link href="/studio?source=youtube">Only have a YouTube link? →</Link></div></footer>
     </main>
   );
 }
