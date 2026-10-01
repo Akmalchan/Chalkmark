@@ -11,13 +11,16 @@
     "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/**/*.test.ts"
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "predev": "node scripts/copy-mediapipe.mjs",
+    "prebuild": "node scripts/copy-mediapipe.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.87",
     "@ai-sdk/google-vertex": "^5.0.101",
     "@google-cloud/firestore": "^9.3.0",
     "@google-cloud/storage": "^8.2.0",
+    "@mediapipe/tasks-vision": "^1.0.1",
     "ai": "^7.0.122",
     "katex": "^0.18.9",
     "mediabunny": "^1.61.0",

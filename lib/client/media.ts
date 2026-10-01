@@ -6,7 +6,7 @@ import type { Quad, RGBAImage } from "../board/geometry";
 const MAX_CAPTURE_SIDE = 1920;
 
 export class FrameGrabber {
-  private canvas = document.createElement("canvas");
+  readonly canvas = document.createElement("canvas");
   private context: CanvasRenderingContext2D;
   readonly width: number;
   readonly height: number;

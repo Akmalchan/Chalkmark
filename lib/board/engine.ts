@@ -77,6 +77,9 @@ export type Snapshot = {
   erasedCells: number;
 };
 
+/** Person segmentation in source-frame space (any resolution; 1/true = person). */
+export type PersonMask = { width: number; height: number; data: ArrayLike<number> };
+
 export type FrameReport = {
   t: number;
   committed: number;
@@ -119,6 +122,7 @@ export class BoardEngine {
   private readonly ink: Uint8Array;
   private readonly prevInk: Uint8Array;
   private readonly boardLikePx: Uint8Array;
+  private readonly personScratch: Uint8Array;
   private hasPrev = false;
 
   private readonly cellBg: Float32Array;
@@ -173,6 +177,7 @@ export class BoardEngine {
     this.ink = new Uint8Array(px);
     this.prevInk = new Uint8Array(px);
     this.boardLikePx = new Uint8Array(px);
+    this.personScratch = new Uint8Array(px);
     this.compInk = new Uint8Array(px);
     this.cellBg = new Float32Array(cells);
     this.cellBgSmooth = new Float32Array(cells);
@@ -200,10 +205,11 @@ export class BoardEngine {
   get inkView(): Uint8Array { return this.ink; }
 
   /**
-   * Feed one frame. `personMask` (optional) is a per-pixel mask in analysis coordinates
-   * (aw x ah, 1 = person) from a segmentation model; it makes occlusion handling robust.
+   * Feed one frame. `personMask` (optional) comes from a segmentation model (e.g. MediaPipe) in
+   * source-frame space; cells touching a person are never trusted, which makes occlusion robust
+   * even when clothes look like the board.
    */
-  ingest(source: RGBAImage, t: number, personMask?: Uint8Array): FrameReport {
+  ingest(source: RGBAImage, t: number, personMask?: PersonMask): FrameReport {
     const { cellSize } = this.config;
     if (this.samples > 0) this.sampleInterval = this.sampleInterval * 0.8 + Math.max(0.05, t - this.lastT) * 0.2;
     this.prevT = this.lastT;
@@ -211,6 +217,7 @@ export class BoardEngine {
     this.samples += 1;
 
     warpRegion(source, this.homAnalysis, this.analysis);
+    const mask = personMask ? this.warpMask(personMask, source.width, source.height) : null;
     if (this.samples === 1) warpRegion(source, this.homHiRes, this.composite);
     this.computeLumaAndBackground();
     this.fitBoardModel();
@@ -229,7 +236,7 @@ export class BoardEngine {
       this.moving[c] = still || !this.hasPrev ? 0 : 1;
       this.boardLike[c] = boardFraction >= this.config.minBoardFraction ? 1 : 0;
       let personHit = false;
-      if (personMask) personHit = this.maskHitsCell(personMask, c);
+      if (mask) personHit = this.maskHitsCell(mask, c);
       this.occluded[c] = !this.boardLike[c] || personHit ? 1 : 0;
       if (this.occluded[c]) occludedCount += 1;
       if (this.moving[c]) movingCount += 1;
@@ -435,6 +442,24 @@ export class BoardEngine {
       }
     }
     return { meanDiff: diffSum / cellPx, changedFraction: changed / cellPx, boardFraction: board / cellPx };
+  }
+
+  /** Resample a source-space person mask onto the flattened analysis grid (every other pixel). */
+  private warpMask(mask: PersonMask, sourceWidth: number, sourceHeight: number): Uint8Array {
+    const out = this.personScratch;
+    out.fill(0);
+    const [h0, h1, h2, h3, h4, h5, h6, h7] = this.homAnalysis;
+    const sx = mask.width / sourceWidth, sy = mask.height / sourceHeight;
+    for (let y = 0; y < this.ah; y += 2) {
+      for (let x = 0; x < this.aw; x += 2) {
+        const tx = x + 0.5, ty = y + 0.5;
+        const z = h6 * tx + h7 * ty + 1;
+        const u = Math.floor(((h0 * tx + h1 * ty + h2) / z) * sx);
+        const v = Math.floor(((h3 * tx + h4 * ty + h5) / z) * sy);
+        if (u >= 0 && v >= 0 && u < mask.width && v < mask.height && mask.data[v * mask.width + u]) out[y * this.aw + x] = 1;
+      }
+    }
+    return out;
   }
 
   private maskHitsCell(mask: Uint8Array, c: number): boolean {

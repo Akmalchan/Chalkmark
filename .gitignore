@@ -10,3 +10,4 @@ work/
 outputs/
 *.tsbuildinfo
 .data/
+public/mediapipe/

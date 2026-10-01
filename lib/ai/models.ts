@@ -83,12 +83,26 @@ export class ModelChainError extends Error {
   constructor(message: string, readonly attempts: Attempted[], readonly cause: unknown) { super(message); }
 }
 
+/**
+ * Models that just returned 429 (quota) or 503 (overloaded) are skipped for a short while, so the
+ * next board read goes straight to a model that is answering instead of waiting on retries.
+ */
+const cooldownUntil = new Map<string, number>();
+function coolDown(id: string, error: unknown) {
+  const status = statusOf(error);
+  const seconds = status === 429 ? 90 : status === 503 ? 25 : 0;
+  if (seconds) cooldownUntil.set(id, Date.now() + seconds * 1000);
+}
+
 export async function withModels<T>(
   task: Task,
   run: (model: LanguageModel, meta: { id: string; provider: ProviderName }) => Promise<T>,
 ): Promise<{ value: T; model: string; provider: ProviderName; attempts: Attempted[] }> {
   if (!aiConfigured()) throw new ModelChainError("Gemini is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (local) or GOOGLE_VERTEX_PROJECT (Google Cloud).", [], null);
-  const list = candidates(task);
+  const all = candidates(task);
+  const available = all.filter(candidate => (cooldownUntil.get(candidate.id) ?? 0) <= Date.now());
+  // If everything is cooling down, try them all anyway rather than failing outright.
+  const list = available.length ? available : all;
   const attempts: Attempted[] = [];
   let lastError: unknown;
   for (const candidate of list) {
@@ -97,6 +111,7 @@ export async function withModels<T>(
       return { value, model: candidate.id, provider: candidate.provider, attempts };
     } catch (error) {
       lastError = error;
+      coolDown(candidate.id, error);
       attempts.push({ model: candidate.id, provider: candidate.provider, status: statusOf(error), error: error instanceof Error ? error.message.slice(0, 200) : String(error) });
       console.warn(`[chalkmark] ${task} failed on ${candidate.id}`, statusOf(error) ?? "", error instanceof Error ? error.message.slice(0, 160) : "");
       if (!worthAnotherModel(error)) break;

@@ -99,3 +99,5 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 }
 .retry-banner { max-width: 860px; margin: 18px auto 0; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff4dc; border: 1px solid #f0d49a; border-radius: 12px; font-size: 13px; color: #6c4e12; }
 .retry-banner button { padding: 8px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+.toggle em { font-style: normal; color: var(--muted); }
+.mask-chip { padding: 3px 8px; border-radius: 10px; background: #e7f5c4; color: #3d5a17; }

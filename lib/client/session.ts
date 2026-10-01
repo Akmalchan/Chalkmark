@@ -1,6 +1,6 @@
 "use client";
 
-import { BoardEngine, type EngineConfig, type FrameReport, type Snapshot } from "../board/engine";
+import { BoardEngine, type EngineConfig, type FrameReport, type PersonMask, type Snapshot } from "../board/engine";
 import type { Quad, RGBAImage } from "../board/geometry";
 import { renderPaper } from "../board/paper";
 import { freshness, fromGeminiBox, tightenToInk, writtenSpan, type Box } from "../board/blocks";
@@ -64,7 +64,7 @@ export class LectureSession {
   get revision() { return this.version; }
   private emit() { this.version += 1; for (const listener of this.listeners) listener(); }
 
-  ingest(frame: RGBAImage, t: number, personMask?: Uint8Array): FrameReport {
+  ingest(frame: RGBAImage, t: number, personMask?: PersonMask): FrameReport {
     const report = this.engine.ingest(frame, t, personMask);
     this.framesAnalyzed += 1;
     this.durationSeconds = Math.max(this.durationSeconds, t);

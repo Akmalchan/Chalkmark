@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
 import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
+import { PersonMasker } from "@/lib/client/person";
 import { formatClock } from "@/lib/notes/assemble";
 import type { NotesDoc } from "@/lib/notes/schema";
 import { MathText } from "@/components/math";
@@ -30,6 +31,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
   const [cameraId, setCameraId] = useState<string>("");
   const [media, setMedia] = useState<{ blob: Blob; name: string } | null>(null);
   const [useAudio, setUseAudio] = useState(true);
+  const [usePersonMask, setUsePersonMask] = useState(true);
+  const [maskActive, setMaskActive] = useState(false);
   const [title, setTitle] = useState("");
   const [memoryMode, setMemoryMode] = useState<MemoryMode>("photo");
   const [tick, setTick] = useState(0);
@@ -133,6 +136,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     if (cameraId === SIMULATED_CAMERA) restartSimulatedCamera();
     const grabber = new FrameGrabber(element);
     const active = new LectureSession("camera", grabber.toCapture(quad!), { stableSeconds: 1.2 }, title);
+    const masker = usePersonMask ? await PersonMasker.create() : null;
+    setMaskActive(Boolean(masker));
     setSession(active);
     setPhase("running");
     running.current = true;
@@ -144,12 +149,15 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     }
     while (running.current) {
       const begin = performance.now();
-      active.ingest(grabber.grab(), clock());
+      const t = clock();
+      const frame = grabber.grab();
+      active.ingest(frame, t, masker?.mask(grabber.canvas, t * 1000) ?? undefined);
       setTick(value => value + 1);
-      setElapsed(clock());
+      setElapsed(t);
       await new Promise(resolve => setTimeout(resolve, Math.max(10, LIVE_INTERVAL_MS - (performance.now() - begin))));
     }
-  }, [quad, title, useAudio, cameraId]);
+    masker?.close();
+  }, [quad, title, useAudio, cameraId, usePersonMask]);
 
   const startFile = useCallback(async () => {
     const element = video.current!;
@@ -157,6 +165,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     const interval = Math.min(2, Math.max(0.5, duration / 1200));
     const grabber = new FrameGrabber(element);
     const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2) }, title || media?.name);
+    const masker = usePersonMask ? await PersonMasker.create() : null;
+    setMaskActive(Boolean(masker));
     setSession(active);
     setPhase("running");
     running.current = true;
@@ -169,14 +179,16 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     let stalled = 0;
     for (let t = 0; t <= duration && running.current; t += interval) {
       if (!(await seekTo(element, t))) { stalled += 1; if (stalled > 5) break; continue; }
-      active.ingest(grabber.grab(), t);
+      const frame = grabber.grab();
+      active.ingest(frame, t, masker?.mask(grabber.canvas, t * 1000) ?? undefined);
       setScan(t / duration);
       setElapsed(t);
       setTick(value => value + 1);
     }
     if (stalled > 5) active.warnings.push("The browser stopped seeking through this video, so the end of it was not scanned.");
+    masker?.close();
     await finish(active);
-  }, [quad, title, media, useAudio, finish]);
+  }, [quad, title, media, useAudio, usePersonMask, finish]);
 
   /* ---------- render ---------- */
 
@@ -226,6 +238,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
             <span>{session?.framesAnalyzed ?? 0} frames</span>
             <span>{boards.length} boards saved</span>
             <span>{blocksRead} items read</span>
+            {maskActive && <span className="mask-chip">MediaPipe lecturer mask</span>}
             {session && session.transcript.length > 0 && <span>{session.transcript.length} lines of speech</span>}
           </div>
         )}
@@ -279,6 +292,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
             {source === "file" && media && <div className="field-note">{media.name} · {formatClock(video.current?.duration ?? 0)}</div>}
             <label className="field"><span>Lecture title <em>(optional)</em></span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g. Calculus I — derivatives" /></label>
             <label className="toggle"><input type="checkbox" checked={useAudio} onChange={event => setUseAudio(event.target.checked)} /><span>{source === "camera" ? "Record speech from the microphone" : "Transcribe the video's audio"}</span></label>
+            <label className="toggle"><input type="checkbox" checked={usePersonMask} onChange={event => setUsePersonMask(event.target.checked)} /><span>Detect the lecturer with MediaPipe <em>(on-device)</em></span></label>
             {error && <div className="error-box"><span>!</span><p>{error}</p></div>}
             {stage && <div className="field-note">{stage}</div>}
             <button className="start-button" disabled={!ready} onClick={() => (source === "camera" ? startLive() : startFile())}>
