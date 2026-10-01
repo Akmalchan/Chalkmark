@@ -1,44 +1,21 @@
-import { google } from "@ai-sdk/google";
-import { APICallError, generateText, Output, RetryError, type ModelMessage } from "ai";
+import { generateText, Output, type ModelMessage } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { lectureSchema } from "@/lib/lecture-schema";
 import { youtubeDuration, youtubeId } from "@/lib/source-metadata";
 import { validateLecture } from "@/lib/validate-lecture";
+import { aiConfigured, isTimeout, ModelChainError, statusOf, withModels } from "@/lib/ai/models";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_VIDEO_BYTES = 85 * 1024 * 1024;
 const MAX_FRAMES = 12;
-const MODEL_TIMEOUT_MS = 75_000;
-const FALLBACK_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-  "gemini-3.8-flash",
-  "gemini-3.5-flash",
-] as const;
-
-function modelCandidates(): string[] {
-  const configuredModel = process.env.GEMINI_MODEL?.trim();
-  return [...new Set([configuredModel, ...FALLBACK_MODELS].filter((model): model is string => Boolean(model)))];
-}
-
-function apiCallError(error: unknown): APICallError | undefined {
-  if (APICallError.isInstance(error)) return error;
-  if (RetryError.isInstance(error) && APICallError.isInstance(error.lastError)) return error.lastError;
-  return undefined;
-}
+const MODEL_TIMEOUT_MS = 90_000;
 
 function isTransientModelError(error: unknown): boolean {
-  const status = apiCallError(error)?.statusCode;
-  const timedOut = (error instanceof Error && error.name === "TimeoutError") || (RetryError.isInstance(error) && error.reason === "abort");
-  return timedOut || status === 408 || status === 429 || (status !== undefined && status >= 500);
-}
-
-function canTryFallback(error: unknown): boolean {
-  const status = apiCallError(error)?.statusCode;
-  return isTransientModelError(error) || status === 400 || status === 404;
+  const status = statusOf(error);
+  return isTimeout(error) || status === 408 || status === 429 || (status !== undefined && status >= 500);
 }
 
 function isYouTubeUrl(value: string): boolean {
@@ -87,7 +64,7 @@ Return only a JSON object conforming to this schema. Use null for unavailable nu
 ${JSON.stringify(z.toJSONSchema(lectureSchema))}`;
 
 export async function POST(request: Request) {
-  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (!aiConfigured()) {
     return NextResponse.json(
       { error: "Gemini is not configured yet. Add GOOGLE_GENERATIVE_AI_API_KEY to .env.local, then restart the app." },
       { status: 503 },
@@ -152,55 +129,41 @@ export async function POST(request: Request) {
       content.push({ type: "file", data: new Uint8Array(await frame.arrayBuffer()), mediaType: frame.type });
     }
 
-    const candidates = modelCandidates();
-    const attemptedModels: string[] = [];
-    let lastError: unknown;
+    // Strongest model first; a malformed or schema-invalid answer falls through to the next model.
+    const result = await withModels("quick", async model => {
+      const response = await generateText({
+        model,
+        system: instructions,
+        messages: [{ role: "user", content }],
+        // Gemini rejects the nested drawing schema in responseJsonSchema.
+        // Request JSON syntax, then enforce the full schema locally before rendering.
+        output: Output.json(),
+        maxRetries: 0,
+        timeout: { totalMs: MODEL_TIMEOUT_MS },
+      });
+      return lectureSchema.parse(response.output);
+    });
 
-    for (const modelId of candidates) {
-      attemptedModels.push(modelId);
-
-      try {
-        const result = await generateText({
-          model: google(modelId),
-          system: instructions,
-          messages: [{ role: "user", content }],
-          // Gemini rejects the nested drawing schema in responseJsonSchema.
-          // Request JSON syntax, then enforce the full schema locally before rendering.
-          output: Output.json(),
-          maxRetries: 0,
-          timeout: { totalMs: MODEL_TIMEOUT_MS },
-        });
-
-        return NextResponse.json({
-          document: validateLecture(lectureSchema.parse(result.output), sourceDuration, suppliedFrameIds),
-          analysis: {
-            model: modelId,
-            attemptedModels,
-            selectedFrames: limitedMeta.length,
-            sourceType,
-            videoStored: false,
-          },
-        });
-      } catch (error) {
-        lastError = error;
-        if (!canTryFallback(error) || modelId === candidates.at(-1)) throw error;
-        console.warn("Gemini model unavailable or incompatible; trying fallback", {
-          model: modelId,
-          statusCode: apiCallError(error)?.statusCode,
-        });
-      }
-    }
-
-    throw lastError ?? new Error("No Gemini model was available.");
+    return NextResponse.json({
+      document: validateLecture(result.value, sourceDuration, suppliedFrameIds),
+      analysis: {
+        model: result.model,
+        attemptedModels: [...result.attempts.map(attempt => attempt.model), result.model],
+        selectedFrames: limitedMeta.length,
+        sourceType,
+        videoStored: false,
+      },
+    });
   } catch (error) {
-    console.error("Lecture reconstruction failed", error);
+    console.error("Lecture reconstruction failed", error instanceof ModelChainError ? error.attempts : error);
+    if (error instanceof ModelChainError) error = error.cause ?? error;
     const message = asErrorMessage(error);
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Gemini returned incomplete drawing or lecture data. The result was rejected rather than shown as reliable notes. Try a shorter clip." }, { status: 502 });
     if (isTransientModelError(error)) {
-      const status = apiCallError(error)?.statusCode;
+      const status = statusOf(error);
       return NextResponse.json(
         { error: status === 429 ? "Google reported a rate or quota limit (429). Check your project's limits in AI Studio before retrying."
-          : error instanceof Error && error.name === "TimeoutError" ? "The lecture analysis exceeded the time limit. Try a shorter clip; this error does not establish that your free quota is exhausted."
+          : isTimeout(error) ? "The lecture analysis exceeded the time limit. Try a shorter clip; this error does not establish that your free quota is exhausted."
           : "Google's video models are currently unavailable (503). Please retry later." },
         { status: status === 429 ? 429 : 503 },
       );
