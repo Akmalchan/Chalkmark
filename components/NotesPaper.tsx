@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LectureVisual } from "@/app/lecture-visual";
 import { Equation, MarkdownLite, MathText } from "@/components/math";
+import { FigureRedraw } from "@/components/FigureRedraw";
 import { formatClock } from "@/lib/notes/assemble";
 import type { NoteBlock, NotesDoc } from "@/lib/notes/schema";
 
@@ -68,7 +69,7 @@ export function NotesPaper({ doc, urls }: Props) {
 
       {doc.boards.length > 0 && (
         <section className="paper-appendix">
-          <h3>Board pages <small>every state the board reached before it was erased</small></h3>
+          <h3>Board pages <small>every state the board reached before it was erased or left the frame</small></h3>
           <div className="board-pages">
             {doc.boards.map(board => {
               const view = boardView[board.id] ?? "paper";
@@ -76,7 +77,7 @@ export function NotesPaper({ doc, urls }: Props) {
                 <figure key={board.id}>
                   <img src={urls[view === "paper" ? board.paper : board.raw]} alt={`Board as it was at ${formatClock(board.t)}`} width={board.width} height={board.height} />
                   <figcaption>
-                    <span>{board.caption ? `${board.caption} · ` : ""}{board.reason === "erase" ? "saved before erase" : board.reason === "manual" ? "captured" : "final board"} · {formatClock(board.t)}</span>
+                    <span>{board.caption ? `${board.caption} · ` : ""}{board.reason === "erase" ? "saved before erase" : board.reason === "view" ? "saved before the camera moved" : board.reason === "manual" ? "captured" : "final board"} · {formatClock(board.t)}</span>
                     <button className="no-print" onClick={() => setBoardView(state => ({ ...state, [board.id]: view === "paper" ? "raw" : "paper" }))}>{view === "paper" ? "Show photo" : "Show clean"}</button>
                   </figcaption>
                 </figure>
@@ -118,6 +119,9 @@ function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Recor
       </figure>
     );
   }
+  if (block.redraw && (block.kind === "graph" || block.kind === "diagram" || block.kind === "drawing")) {
+    return <RedrawnFigure block={block} original={block.figure ? urls[block.figure] : undefined} approx={approx} youtube={youtube} />;
+  }
   if (block.figure && urls[block.figure]) {
     return (
       <figure className={`paper-figure kind-${block.kind}`}>
@@ -148,4 +152,25 @@ function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Recor
     );
   }
   return <div className={`paper-text ${uncertain ? "uncertain" : ""}`}><MarkdownLite text={block.content} /></div>;
+}
+
+function RedrawnFigure({ block, original, approx, youtube }: { block: NoteBlock; original?: string; approx: string; youtube: string | null }) {
+  const spec = block.redraw!;
+  const [showInk, setShowInk] = useState(spec.confidence === "low");
+  return (
+    <figure className={`paper-figure redrawn kind-${block.kind}`}>
+      <div className="paper-figure-art">
+        <div className="redraw-frame"><FigureRedraw spec={spec} /></div>
+        {original && showInk && <div className="compare-ink"><small>Original ink from the board</small><img src={original} alt={`Original drawing: ${block.content}`} /></div>}
+      </div>
+      <figcaption>
+        <span className="paper-figure-kind">{KIND_LABEL[block.kind]} · redrawn{block.writtenAt !== null && ` · ${approx}${formatClock(block.writtenAt)}`}</span>
+        <strong><MathText text={block.content} /></strong>
+        {block.detail && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
+        {spec.confidence !== "high" && <span className="redraw-note">{spec.confidence === "low" ? "Approximate redraw" : "Redraw may simplify details"}{spec.notes ? ` — ${spec.notes}` : ""}. Compare with the board.</span>}
+        {original && <button className="compare-toggle no-print" onClick={() => setShowInk(value => !value)}>{showInk ? "Hide the original" : "Compare with the board"}</button>}
+        {!original && youtube && block.writtenAt !== null && <a className="watch-link no-print" href={`https://www.youtube.com/watch?v=${youtube}&t=${Math.max(0, Math.round(block.writtenAt) - 3)}s`} target="_blank" rel="noreferrer">Watch it on the board ↗</a>}
+      </figcaption>
+    </figure>
+  );
 }

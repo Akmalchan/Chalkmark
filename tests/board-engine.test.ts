@@ -117,3 +117,28 @@ test("a camera pan is not mistaken for erasing: one saved view, nothing committe
   assert.equal(committedDuringPan, 0, "nothing is committed while the camera moves");
   assert.ok(snapshots <= 1, `one saved view at most, got ${snapshots}`);
 });
+
+test("after the camera moves, no stale content from the old view survives behind the lecturer", () => {
+  const engine = new BoardEngine(fullFrameQuad(W, H));
+  const oldView = textBlock(380, 200, 200, 3);      // writing on the right of the first view
+  const newView = textBlock(60, 60, 200, 2);        // different part of the board after the pan
+  const lecturer = [{ x: 360, y: 120, w: 240, h: 240 }]; // stands over where the old writing was
+  const shifted = (strokes: Stroke[], dx: number) => strokes.map(s => ({ ...s, x0: s.x0 - dx, x1: s.x1 - dx }));
+  let t = 0, views = 0;
+  const feed = (strokes: Stroke[], people: Person[] = []) => { if (engine.ingest(render(strokes, people), t).snapshot?.reason === "view") views += 1; t += STEP; };
+  for (let i = 0; i < 8; i += 1) feed([...oldView]);
+  for (let i = 1; i <= 6; i += 1) feed(shifted([...oldView, ...newView], i * 40 - 400));
+  for (let i = 0; i < 10; i += 1) feed([...newView], lecturer);
+  assert.equal(views, 1, "the old view is saved exactly once");
+  assert.ok(engine.viewChanges >= 1);
+  // Where the lecturer stands, memory must be bare board — not the old view's writing.
+  const { composite } = engine;
+  const sx = composite.width / W, sy = composite.height / H;
+  let dark = 0, total = 0;
+  for (let y = 210; y < 260; y += 5) for (let x = 400; x < 560; x += 5) {
+    const i = (Math.round(y * sy) * composite.width + Math.round(x * sx)) * 4;
+    if ((composite.data[i] * 77 + composite.data[i + 1] * 150 + composite.data[i + 2] * 29) >> 8 < 150) dark += 1;
+    total += 1;
+  }
+  assert.ok(dark / total < 0.02, `stale ink behind the lecturer: ${(100 * dark / total).toFixed(1)}%`);
+});

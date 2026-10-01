@@ -2,6 +2,7 @@
 
 import { assembleSections, transcriptText } from "../notes/assemble";
 import type { BoardRead, Composition, NoteBlock, NotesDoc, TranscriptSegment } from "../notes/schema";
+import { redrawFigures } from "./redraw";
 
 type Usage = { inputTokens: number; outputTokens: number };
 type Scan = { id: string; title: string; durationSeconds: number; durationVerified: boolean; moments: Array<{ t: number; description: string }>; segments: TranscriptSegment[]; usage: Usage; model: string };
@@ -70,13 +71,16 @@ export async function runYouTube(url: string, onStage: (label: string) => void):
     composition = { title: scan.title, course: "Lecture", summary: "", duplicateBlockIds: [], sections: [{ title: "Board notes", blockIds: blocks.map(b => b.id), explanation: [], takeaways: [] }] };
   }
 
+  const sections = assembleSections(composition, blocks);
+  await redrawFigures(sections, new Map(), (done, total) => onStage(total ? `Redrawing figures cleanly · ${done}/${total}` : "Finishing"), add);
+
   return {
     version: 2,
     title: composition.title || scan.title,
     course: composition.course,
     summary: composition.summary,
     createdAt: new Date().toISOString(),
-    sections: assembleSections(composition, blocks),
+    sections,
     boards: [],
     transcript: scan.segments,
     warnings,

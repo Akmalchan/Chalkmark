@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { graphPanelSchema } from "../lecture-schema";
+import type { FigureSpec } from "./figure";
 
 /* ---------- What Gemini returns when it reads one board snapshot ---------- */
 
@@ -64,6 +65,8 @@ export type NoteBlock = {
   writtenAt: number | null;
   /** Optional computed redraw of a graph, rendered beside the original ink. */
   graph: z.infer<typeof graphPanelSchema> | null;
+  /** Clean vector redraw of a figure by Gemini; the original ink stays available for comparison. */
+  redraw?: FigureSpec | null;
 };
 
 export type BoardPage = {
@@ -71,7 +74,7 @@ export type BoardPage = {
   /** Short topic title (Gemma 4), when available. */
   caption?: string;
   t: number;
-  reason: "erase" | "final" | "manual";
+  reason: "erase" | "final" | "manual" | "view";
   paper: string;
   raw: string;
   width: number;

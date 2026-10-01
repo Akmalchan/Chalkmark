@@ -55,7 +55,7 @@ export const DEFAULT_CONFIG: EngineConfig = {
   denoiseObservations: 4,
 };
 
-export type SnapshotReason = "erase" | "final" | "manual";
+export type SnapshotReason = "erase" | "final" | "manual" | "view";
 
 export type Snapshot = {
   id: string;
@@ -84,6 +84,8 @@ export type FrameReport = {
   t: number;
   /** The camera panned/zoomed this frame: nothing is committed until it settles. */
   cameraMoved: boolean;
+  /** The camera settled on a different part of the board; memory restarted for the new view. */
+  viewChanged: boolean;
   committed: number;
   occluded: number;
   moving: number;
@@ -150,6 +152,12 @@ export class BoardEngine {
   private readonly prevColProfile: Float32Array;
   private readonly prevRowProfile: Float32Array;
   cameraMoves = 0;
+  viewChanges = 0;
+  private inMotion = false;
+  private settleFrames = 0;
+  private motionShift = { x: 0, y: 0 };
+  private pendingView: Snapshot | null = null;
+  private boardRGB: [number, number, number] = [128, 128, 128];
 
   private samples = 0;
   private commits = 0;
@@ -230,10 +238,13 @@ export class BoardEngine {
 
     warpRegion(source, this.homAnalysis, this.analysis);
     const mask = personMask ? this.warpMask(personMask, source.width, source.height) : null;
-    if (this.samples === 1) warpRegion(source, this.homHiRes, this.composite);
     this.computeLumaAndBackground();
     this.fitBoardModel();
     this.computeInkAndBoardLikeness();
+    this.boardRGB = this.estimateBoardColour();
+    // Memory starts as bare board and fills in as cells are trusted, so nothing (a person standing
+    // there at the start, a stale view) can sit in it unverified.
+    if (this.samples === 1) this.fillComposite();
 
     const cells = this.cols * this.rows;
     const cellPx = cellSize * cellSize;
@@ -255,12 +266,45 @@ export class BoardEngine {
     }
     this.dilateOcclusion();
 
-    // A pan or zoom shifts the whole board at once. Until the camera settles, nothing is trusted:
-    // otherwise every pan would look like an erase and half-views would be saved as boards.
-    const cameraMoved = this.detectCameraMotion();
+    // A pan or zoom shifts the whole board at once. While the camera moves nothing is trusted, and
+    // the view it is leaving is held aside. When it settles somewhere new, that view is saved once
+    // and memory restarts clean — otherwise cells hidden behind the lecturer would keep stale
+    // content from the old angle and the memory would become a collage of two views.
+    const motion = this.detectCameraMotion();
+    const cameraMoved = motion.moved;
+    let snapshot: Snapshot | null = null;
+    let viewChanged = false;
     if (cameraMoved) {
       this.cameraMoves += 1;
+      if (!this.inMotion) {
+        this.inMotion = true;
+        this.motionShift = { x: 0, y: 0 };
+        this.pendingView = this.hasUnsavedInk() ? this.buildSnapshot("view", this.prevT, 0) : null;
+      }
+      this.motionShift.x += motion.dx;
+      this.motionShift.y += motion.dy;
+      this.settleFrames = 0;
       this.stillCount.fill(0);
+    } else if (this.inMotion) {
+      this.settleFrames += 1;
+      if (this.settleFrames >= neededStill) {
+        this.inMotion = false;
+        const moved = Math.abs(this.motionShift.x) > this.config.cellSize * 1.5 || Math.abs(this.motionShift.y) > this.config.cellSize * 1.5;
+        if (moved) {
+          if (this.pendingView) snapshot = this.commitSnapshot(this.pendingView);
+          this.resetView();
+          this.viewChanges += 1;
+          viewChanged = true;
+        }
+        this.pendingView = null;
+      }
+    }
+    if (this.inMotion) {
+      this.prevInk.set(this.ink);
+      this.prevColProfile.set(this.colProfile);
+      this.prevRowProfile.set(this.rowProfile);
+      this.hasPrev = true;
+      return { t, cameraMoved, viewChanged, committed: 0, occluded: occludedCount, moving: movingCount, erasing: 0, snapshot };
     }
 
     // Decide which cells to commit and whether any of them would destroy unsaved ink.
@@ -282,7 +326,6 @@ export class BoardEngine {
       }
     }
 
-    let snapshot: Snapshot | null = null;
     // Tiny losses (a sleeve edge that sat still, a smudge) are not worth a board state of their own.
     if (unsavedLoss >= this.config.minLostInk) snapshot = this.takeSnapshot("erase", this.prevT, losses.length);
 
@@ -293,7 +336,41 @@ export class BoardEngine {
     this.prevColProfile.set(this.colProfile);
     this.prevRowProfile.set(this.rowProfile);
     this.hasPrev = true;
-    return { t, cameraMoved, committed: toCommit.length, occluded: occludedCount, moving: movingCount, erasing: losses.length, snapshot };
+    return { t, cameraMoved, viewChanged, committed: toCommit.length, occluded: occludedCount, moving: movingCount, erasing: losses.length, snapshot };
+  }
+
+  private hasUnsavedInk() {
+    for (let c = 0; c < this.dirty.length; c += 1) if (this.dirty[c] && this.inkCount[c] >= this.config.minInkPixels) return true;
+    return false;
+  }
+
+  /** Forget the current view: every cell must be observed again before it is trusted. */
+  private resetView() {
+    this.compHas.fill(0);
+    this.compInk.fill(0);
+    this.inkCount.fill(0);
+    this.birth.fill(Number.NaN);
+    this.dirty.fill(0);
+    this.observations.fill(0);
+    this.fillComposite();
+  }
+
+  /** Typical bare-board colour in this frame (board-like, ink-free pixels). */
+  private estimateBoardColour(): [number, number, number] {
+    const { data } = this.analysis;
+    let r = 0, g = 0, b = 0, n = 0;
+    const limit = this.config.inkThreshold * 0.3;
+    for (let p = 0; p < this.boardLikePx.length; p += 7) {
+      if (!this.boardLikePx[p] || this.ink[p] > limit) continue;
+      r += data[p * 4]; g += data[p * 4 + 1]; b += data[p * 4 + 2]; n += 1;
+    }
+    return n ? [r / n, g / n, b / n] : this.boardRGB;
+  }
+
+  private fillComposite() {
+    const [r, g, b] = this.boardRGB;
+    const out = this.composite.data;
+    for (let i = 0; i < out.length; i += 4) { out[i] = r; out[i + 1] = g; out[i + 2] = b; out[i + 3] = 255; }
   }
 
   /**
@@ -301,7 +378,7 @@ export class BoardEngine {
    * shift explains most of the change between frames, the camera moved. A lecturer walking changes
    * the profiles too, but no one shift explains it, and body pixels are excluded as non-board.
    */
-  private detectCameraMotion(): boolean {
+  private detectCameraMotion(): { moved: boolean; dx: number; dy: number } {
     this.colProfile.fill(0);
     this.rowProfile.fill(0);
     for (let y = 0; y < this.ah; y += 1) {
@@ -314,12 +391,13 @@ export class BoardEngine {
         this.rowProfile[y] += v;
       }
     }
-    if (!this.hasPrev) return false;
+    if (!this.hasPrev) return { moved: false, dx: 0, dy: 0 };
     const horizontal = bestShift(this.prevColProfile, this.colProfile, Math.round(this.aw * 0.2));
     const vertical = bestShift(this.prevRowProfile, this.rowProfile, Math.round(this.ah * 0.2));
     const explained = (m: { shift: number; zeroError: number; bestError: number; change: number }) =>
       Math.abs(m.shift) >= 2 && m.change > 0.12 && m.bestError < m.zeroError * 0.55;
-    return explained(horizontal) || explained(vertical);
+    const h = explained(horizontal), v = explained(vertical);
+    return { moved: h || v, dx: h ? horizontal.shift : 0, dy: v ? vertical.shift : 0 };
   }
 
   /** Save whatever ink is not yet in a snapshot (end of lecture, or a manual capture). */
@@ -632,12 +710,26 @@ export class BoardEngine {
   }
 
   private takeSnapshot(reason: SnapshotReason, t: number, erasedCells: number): Snapshot {
+    return this.commitSnapshot(this.buildSnapshot(reason, t, erasedCells));
+  }
+
+  /** Numbers and records a snapshot, and marks everything currently in memory as saved. */
+  private commitSnapshot(snapshot: Snapshot): Snapshot {
+    this.snapshotSeq += 1;
+    snapshot.id = `board-${String(this.snapshotSeq).padStart(2, "0")}`;
+    snapshot.index = this.snapshotSeq - 1;
+    this.dirty.fill(0);
+    this.snapshots.push(snapshot);
+    return snapshot;
+  }
+
+  /** A copy of the current memory (not yet recorded). */
+  private buildSnapshot(reason: SnapshotReason, t: number, erasedCells: number): Snapshot {
     const fresh = new Uint8Array(this.dirty.length);
     for (let c = 0; c < fresh.length; c += 1) fresh[c] = this.dirty[c] && this.inkCount[c] >= this.config.minInkPixels ? 1 : 0;
-    this.snapshotSeq += 1;
-    const snapshot: Snapshot = {
-      id: `board-${String(this.snapshotSeq).padStart(2, "0")}`,
-      index: this.snapshotSeq - 1,
+    return {
+      id: "",
+      index: -1,
       t,
       reason,
       image: { width: this.composite.width, height: this.composite.height, data: Uint8ClampedArray.from(this.composite.data) },
@@ -649,9 +741,6 @@ export class BoardEngine {
       fresh,
       erasedCells,
     };
-    this.dirty.fill(0);
-    this.snapshots.push(snapshot);
-    return snapshot;
   }
 }
 

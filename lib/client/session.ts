@@ -6,8 +6,10 @@ import { renderPaper } from "../board/paper";
 import { freshness, fromGeminiBox, tightenToInk, writtenSpan, type Box } from "../board/blocks";
 import { assembleSections, transcriptText } from "../notes/assemble";
 import { dedupeBlocks } from "../notes/dedupe";
+import { redrawFigures } from "./redraw";
 import { FIGURE_KINDS, type BoardPage, type BoardRead, type Composition, type NoteBlock, type NotesDoc, type TranscriptSegment } from "../notes/schema";
 import { cropImage, imageToBlob } from "./media";
+import { inkMask, supersededBoards, type InkMask } from "../board/supersede";
 
 export type SourceKind = "camera" | "file";
 
@@ -15,7 +17,9 @@ export type BoardState = {
   page: BoardPage;
   paperUrl: string;
   rawUrl: string;
-  status: "reading" | "done" | "error";
+  /** queued: recordings are read after the scan, once superseded/empty boards are pruned. */
+  status: "queued" | "reading" | "done" | "error" | "skipped";
+  skipReason?: string;
   error?: string;
   blocks: NoteBlock[];
   skipped: number;
@@ -51,13 +55,16 @@ export class LectureSession {
   private readonly startedAt = performance.now();
   private readonly pending = new Set<Promise<unknown>>();
   private readonly paperImages = new Map<string, RGBAImage>();
+  private readonly masks = new Map<string, InkMask>();
+  private readonly blobs = new Map<string, { paper: Blob; raw: Blob }>();
   private readonly snapshots = new Map<string, Snapshot>();
   private readQueue: Array<() => Promise<void>> = [];
   private activeReads = 0;
   private listeners = new Set<() => void>();
   private version = 0;
 
-  constructor(readonly source: SourceKind, quad: Quad, config: Partial<EngineConfig> = {}, private readonly title = "") {
+  /** `dry`: run only the on-device engine (no Gemini calls) — for tuning on real footage. */
+  constructor(readonly source: SourceKind, quad: Quad, config: Partial<EngineConfig> = {}, private readonly title = "", readonly dry = false) {
     this.engine = new BoardEngine(quad, config);
   }
 
@@ -123,11 +130,44 @@ export class LectureSession {
     this.files.set(page.raw, rawBlob);
     this.paperImages.set(snapshot.id, paper);
     this.snapshots.set(snapshot.id, { ...snapshot, image: { width: 0, height: 0, data: new Uint8ClampedArray(0) } });
-    const state: BoardState = { page, paperUrl: URL.createObjectURL(paperBlob), rawUrl: URL.createObjectURL(rawBlob), status: "reading", blocks: [], skipped: 0 };
+    const deferred = this.source === "file";
+    const state: BoardState = { page, paperUrl: URL.createObjectURL(paperBlob), rawUrl: URL.createObjectURL(rawBlob), status: deferred ? "queued" : "reading", blocks: [], skipped: 0 };
     this.boards.push(state);
+    this.masks.set(snapshot.id, inkMask(paper));
+    this.blobs.set(snapshot.id, { paper: paperBlob, raw: rawBlob });
+    if (this.dry && !deferred) { state.status = "done"; this.emit(); return; }
     this.emit();
+    // Live capture reads each board immediately; recordings wait for the end of the scan so that
+    // partial versions of a board (saved before the camera moved) can be pruned first.
+    if (deferred) return;
     void this.caption(state, paper);
     await this.enqueueRead(() => this.readBoard(state, paperBlob, rawBlob));
+  }
+
+  /**
+   * Recordings: drop boards that are just earlier, partial versions of a later board (after
+   * aligning for camera movement) and near-empty transition frames, then read the rest.
+   */
+  pruneAndReadQueued(): Promise<void> {
+    const queued = this.boards.filter(board => board.status === "queued");
+    if (!queued.length) return Promise.resolve();
+    const masks = queued.map(board => this.masks.get(board.page.id)!);
+    const typical = masks.map(mask => mask.count).sort((a, b) => a - b)[Math.floor(masks.length / 2)] ?? 0;
+    const superseded = supersededBoards(masks);
+    queued.forEach((board, i) => {
+      if (masks[i].count < Math.max(12, typical * 0.12)) { board.status = "skipped"; board.skipReason = "almost empty (camera in motion)"; }
+      else if (superseded.has(i)) { board.status = "skipped"; board.skipReason = "an earlier version of a later board"; }
+    });
+    this.emit();
+    if (this.dry) { for (const board of queued) if (board.status === "queued") board.status = "done"; this.emit(); return Promise.resolve(); }
+    const reads = queued.filter(board => board.status === "queued").map(board => {
+      board.status = "reading";
+      const blobs = this.blobs.get(board.page.id)!;
+      void this.caption(board, this.paperImages.get(board.page.id)!);
+      return this.track(this.enqueueRead(() => this.readBoard(board, blobs.paper, blobs.raw)));
+    });
+    this.emit();
+    return Promise.all(reads).then(() => undefined);
   }
 
   private async caption(state: BoardState, paper: RGBAImage) {
@@ -222,13 +262,22 @@ export class LectureSession {
   async finish(onStage?: (label: string) => void): Promise<NotesDoc> {
     onStage?.("Saving the last board state");
     const last = this.engine.flush("final");
-    if (last) this.track(this.handleSnapshot(last));
+    if (last) await this.track(this.handleSnapshot(last));
     onStage?.("Reading every board with Gemini");
+    while (this.pending.size) await Promise.allSettled([...this.pending]);
+    await this.pruneAndReadQueued();
     while (this.pending.size) await Promise.allSettled([...this.pending]);
     for (const board of this.boards) if (board.status === "error") board.blocks.length = 0;
     this.paperImages.clear();
     onStage?.("Writing your notes");
-    return this.compose();
+    const doc = await this.compose();
+    await redrawFigures(doc.sections, this.files,
+      (done, total) => onStage?.(total ? `Redrawing figures cleanly · ${done}/${total}` : "Finishing"),
+      (usage, model) => this.addUsage(usage, model));
+    doc.stats.inputTokens = this.usage.inputTokens;
+    doc.stats.outputTokens = this.usage.outputTokens;
+    doc.stats.models = [...this.models];
+    return doc;
   }
 
   /** Gemini's section pass. Safe to call again if it failed (e.g. the model was busy). */
@@ -266,7 +315,7 @@ export class LectureSession {
       summary: composition.summary,
       createdAt: new Date().toISOString(),
       sections: assembleSections(composition, blocks),
-      boards: this.boards.map(board => board.page),
+      boards: this.boards.filter(board => board.status === "done" || board.status === "error").map(board => board.page),
       transcript: this.transcript,
       warnings,
       composed,
@@ -274,7 +323,7 @@ export class LectureSession {
         source: this.source,
         durationSeconds: Math.round(this.durationSeconds),
         framesAnalyzed: this.framesAnalyzed,
-        boards: this.boards.length,
+        boards: this.boards.filter(board => board.status === "done").length,
         blocks: blocks.length,
         inputTokens: this.usage.inputTokens,
         outputTokens: this.usage.outputTokens,

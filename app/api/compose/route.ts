@@ -27,7 +27,7 @@ You get every block that was written on the board (already transcribed, with the
 - Group blocks into sections by topic, in teaching order. Use the written times to keep chronology.
 - Every block ID must appear in exactly one section. Do not rewrite or merge blocks: they are rendered from the board as-is.
 - The board was photographed many times (the camera may pan, boards are re-photographed as they grow), so the same writing or figure often appears in several blocks, sometimes only partially. Keep exactly one copy — the most complete and legible — and list every other copy in duplicateBlockIds. This applies to figures too: two blocks describing the same graph or diagram are duplicates even if one shows a little more; keep the fuller one.
-- Also list in duplicateBlockIds any block that is only a meaningless fragment (a stray word, a cut-off phrase).
+- Also list in duplicateBlockIds any block that is only a meaningless scrap (a stray word, a cut-off phrase). When unsure, keep the block: students rely on these notes, and losing real board content is worse than a repeat.
 - explanation: connect the blocks the way a great TA would, using the lecturer's spoken reasoning when available. Paraphrase; never invent quotes, facts, or steps that are not supported by the board or the speech.
 - takeaways: the few things a student must remember from the section.
 - Use $...$ for math in explanation and takeaways.`;

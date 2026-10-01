@@ -16,7 +16,7 @@ export function notesToMarkdown(doc: NotesDoc, figurePath = (name: string) => `f
         lines.push(`| ${block.table.columns.join(" | ")} |`, `| ${block.table.columns.map(() => "---").join(" | ")} |`);
         for (const row of block.table.rows) lines.push(`| ${block.table.columns.map((_, i) => row[i] ?? "").join(" | ")} |`);
         lines.push("");
-      } else if (block.figure) lines.push(`![${block.content}](${figurePath(block.figure)})`, `*${block.content}*${block.detail ? ` — ${block.detail}` : ""}`, "");
+      } else if (block.figure) lines.push(`![${block.content}](${figurePath(block.figure)})`, `*${block.content}*${block.detail ? ` — ${block.detail}` : ""}${block.redraw ? " (a clean redraw is in the Chalkmark notes)" : ""}`, "");
       else lines.push(block.content, "");
     }
     if (section.takeaways.length) lines.push("**Remember**", ...section.takeaways.map(item => `- ${item}`), "");

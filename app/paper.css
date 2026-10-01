@@ -107,3 +107,18 @@
 .paper-equation .equation figcaption { margin-top: 2px; font-family: var(--font-sans), sans-serif; font-size: 12px; letter-spacing: 0; text-transform: none; color: #74807a; }
 .paper-figure.described { grid-template-columns: 1fr; padding: 14px 18px; border: 1px dashed #d9d4c7; border-radius: 10px; background: #fcfbf7; }
 .watch-link { width: fit-content; margin-top: 4px; font-family: var(--font-sans); font-size: 12px; font-weight: 650; color: #a5462d; }
+
+/* ---------- AI redraws ---------- */
+.redraw-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.redraw-axis { stroke: #1d2622; stroke-width: 2; }
+.redraw-grid { stroke: #e6e1d4; stroke-width: 1; }
+.redraw-tick { font-family: var(--font-sans), sans-serif; font-size: 15px; fill: #6b7570; }
+.redraw-label { font-family: var(--font-serif), serif; }
+.redraw-label.variable { font-style: italic; }
+.paper-figure.redrawn { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.paper-figure-art .redraw-frame { padding: 8px 6px; border: 1px solid #efebe1; border-radius: 10px; background: var(--white); }
+.compare-toggle { width: fit-content; margin-top: 2px; padding: 0; border: 0; background: none; font-family: var(--font-sans); font-size: 11.5px; font-weight: 650; color: #3c5a4b; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.compare-ink { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.compare-ink img { max-height: 220px; }
+.compare-ink small { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: #8a948f; }
+.redraw-note { font-family: var(--font-sans); font-size: 12px; color: #8a6514; }

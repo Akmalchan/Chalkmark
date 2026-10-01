@@ -20,6 +20,7 @@ Split everything written or drawn into blocks, in the order a student would read
 - box_2d must tightly enclose the ink of that block on the image: [ymin, xmin, ymax, xmax] as integers 0-1000.
 - Messy handwriting: use the spoken context (if given) and mathematical consistency to resolve ambiguous symbols. If something stays unreadable, write [?] in its place and set legibility to partial or unclear. Never invent content that is not on the board.
 - The photo may show only part of the board (the camera can pan, the lecturer can block it). Skip writing that is cut off by the image edge, half-erased, or partly hidden — another photo holds the complete version. Never output fragments such as a lone word or the tail of a sentence.
+- Skip a graph that is only empty axes with nothing plotted or labeled yet (it is still being drawn; a later photo has the finished one).
 - Ignore smudges, eraser marks, board edges, and anything that is not writing.`;
 
 export async function POST(request: Request) {

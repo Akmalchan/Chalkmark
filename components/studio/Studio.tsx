@@ -31,7 +31,7 @@ const TUNABLES: Array<{ key: NumericKey; label: string; min: number; max: number
   { key: "minLostInk", label: "Ink lost before a board is saved", min: 10, max: 300, step: 5, hint: "Raise if you get too many saved boards." },
 ];
 
-export function Studio({ initialSource, sampleSrc, simulated = false }: { initialSource: Source; sampleSrc?: string; simulated?: boolean }) {
+export function Studio({ initialSource, sampleSrc, simulated = false, dry = false }: { initialSource: Source; sampleSrc?: string; simulated?: boolean; dry?: boolean }) {
   const [source, setSource] = useState<Source>(initialSource);
   const [phase, setPhase] = useState<Phase>("setup");
   const video = useRef<HTMLVideoElement>(null);
@@ -179,13 +179,14 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     const duration = element.duration;
     const interval = Math.min(2, Math.max(0.5, duration / 1200));
     const grabber = new FrameGrabber(element);
-    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name);
+    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name, dry);
+    (window as unknown as { __session?: LectureSession }).__session = active;
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
     setSession(active);
     setPhase("running");
     running.current = true;
-    if (useAudio && media) {
+    if (useAudio && media && !dry) {
       // Audio is pulled out locally and transcribed while the board is being scanned.
       audioJob.current = extractAudioChunks(media.blob, duration, 300)
         .then(chunks => Promise.all(chunks.map(chunk => active.transcribe(chunk.blob, chunk.offset))))
@@ -202,8 +203,9 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     }
     if (stalled > 5) active.warnings.push("The browser stopped seeking through this video, so the end of it was not scanned.");
     masker?.close();
+    if (dry) { running.current = false; await active.pruneAndReadQueued(); setStage("Dry run finished: engine only, no Gemini calls"); return; }
     await finish(active);
-  }, [quad, title, media, useAudio, usePersonMask, tuning, finish]);
+  }, [quad, title, media, useAudio, usePersonMask, tuning, finish, dry]);
 
   const startYouTube = useCallback(async () => {
     setError("");
@@ -386,7 +388,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
 
       {phase === "finishing" && (
         <div className="finishing-overlay" role="status">
-          <div><span className="spinner" /><strong>{stage || "Finishing"}</strong>{session ? <p>{boards.length} board states · {blocksRead} items read so far</p> : <p>A 30-minute lecture takes a minute or two.</p>}</div>
+          <div><span className="spinner" /><strong>{stage || "Finishing"}</strong>{session ? <p>{boards.filter(board => board.status !== "skipped").length} board states worth reading · {blocksRead} items read so far</p> : <p>A 30-minute lecture takes a minute or two.</p>}</div>
         </div>
       )}
     </main>
@@ -400,15 +402,17 @@ function BoardStrip({ boards }: { boards: BoardState[] }) {
   return (
     <div className="board-strip">
       {boards.map(board => (
-        <article key={board.page.id} className={`board-card status-${board.status}`}>
+        <article key={board.page.id} className={`board-card status-${board.status}`} title={board.skipReason}>
           <img src={board.paperUrl} alt={`Board saved at ${formatClock(board.page.t)}`} />
           <div className="board-card-body">
             <div className="board-card-head">
-              <strong>{board.page.reason === "erase" ? "Saved before erase" : board.page.reason === "manual" ? "Saved manually" : "Final board"}</strong>
+              <strong>{board.page.reason === "erase" ? "Saved before erase" : board.page.reason === "view" ? "Saved before the camera moved" : board.page.reason === "manual" ? "Saved manually" : "Final board"}</strong>
               <time>{formatClock(board.page.t)}</time>
             </div>
             {board.caption && <p className="board-caption" title={`Instant title by ${board.caption.model}`}><span>{board.caption.model.startsWith("gemma") ? "Gemma 4" : "AI"}</span>{board.caption.title}</p>}
             {board.status === "reading" && <p className="reading"><span className="spinner small" /> Gemini is reading this board…</p>}
+            {board.status === "queued" && <p className="reading">Queued · read after the scan</p>}
+            {board.status === "skipped" && <p className="reading">Skipped · {board.skipReason}</p>}
             {board.status === "error" && <p className="board-error">{board.error}</p>}
             {board.status === "done" && (
               <ul>
