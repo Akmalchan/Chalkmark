@@ -43,7 +43,7 @@ Run locally: `npm run dev` (Node 22: `/opt/homebrew/opt/node@22/bin`), open http
 
 **11:45–1:30 — Tune on real footage (the risky part)**
 Prop the phone, frame the whiteboard, write → stand in front → erase → write. Watch the two live panels.
-Knobs live in `DEFAULT_CONFIG` at the top of `lib/board/engine.ts`:
+Tune live with **Advanced · tune the board engine** in the studio setup panel (no code edits needed), or change the defaults in `DEFAULT_CONFIG` at the top of `lib/board/engine.ts`:
 
 | Symptom | Fix |
 |---|---|

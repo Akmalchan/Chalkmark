@@ -18,6 +18,8 @@ export type BoardState = {
   error?: string;
   blocks: NoteBlock[];
   skipped: number;
+  /** Instant title from Gemma 4, shown before the full read finishes. */
+  caption?: { title: string; model: string };
 };
 
 type Usage = { inputTokens: number; outputTokens: number };
@@ -123,7 +125,26 @@ export class LectureSession {
     const state: BoardState = { page, paperUrl: URL.createObjectURL(paperBlob), rawUrl: URL.createObjectURL(rawBlob), status: "reading", blocks: [], skipped: 0 };
     this.boards.push(state);
     this.emit();
+    void this.caption(state, paper);
     await this.enqueueRead(() => this.readBoard(state, paperBlob, rawBlob));
+  }
+
+  private async caption(state: BoardState, paper: RGBAImage) {
+    try {
+      const scale = Math.min(1, 768 / paper.width);
+      const small = await imageToBlob(scale < 1 ? downscale(paper, scale) : paper, "image/jpeg", 0.8);
+      const form = new FormData();
+      form.append("image", small, `${state.page.id}-small.jpg`);
+      const result = await postForm<{ title: string; model: string; usage: Usage }>("/api/board/caption", form);
+      if (result.title) {
+        state.caption = { title: result.title, model: result.model };
+        state.page.caption = result.title;
+        this.addUsage(result.usage, result.model);
+        this.emit();
+      }
+    } catch {
+      // Captions are a nicety; the full read is what matters.
+    }
   }
 
   private enqueueRead(task: () => Promise<void>): Promise<void> {
@@ -264,4 +285,18 @@ export class LectureSession {
     this.emit();
     return doc;
   }
+}
+
+function downscale(image: RGBAImage, scale: number): RGBAImage {
+  const width = Math.max(1, Math.round(image.width * scale)), height = Math.max(1, Math.round(image.height * scale));
+  const data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const sy = Math.min(image.height - 1, Math.floor(y / scale));
+    for (let x = 0; x < width; x += 1) {
+      const sx = Math.min(image.width - 1, Math.floor(x / scale));
+      const from = (sy * image.width + sx) * 4, to = (y * width + x) * 4;
+      data[to] = image.data[from]; data[to + 1] = image.data[from + 1]; data[to + 2] = image.data[from + 2]; data[to + 3] = 255;
+    }
+  }
+  return { width, height, data };
 }

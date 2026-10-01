@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
+import { DEFAULT_CONFIG, type EngineConfig } from "@/lib/board/engine";
 import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
 import { PersonMasker } from "@/lib/client/person";
@@ -20,6 +21,14 @@ type Phase = "setup" | "running" | "finishing" | "done";
 
 const LIVE_INTERVAL_MS = 330;
 
+type NumericKey = { [K in keyof EngineConfig]: EngineConfig[K] extends number ? K : never }[keyof EngineConfig];
+const TUNABLES: Array<{ key: NumericKey; label: string; min: number; max: number; step: number; hint: string }> = [
+  { key: "inkThreshold", label: "Ink sensitivity threshold", min: 30, max: 120, step: 2, hint: "Lower catches faint marker; higher ignores glare and texture." },
+  { key: "stableSeconds", label: "Seconds a patch must be still", min: 0.4, max: 4, step: 0.1, hint: "Higher keeps a slow-moving lecturer out; lower shows writing sooner." },
+  { key: "minBoardFraction", label: "How board-like a patch must look", min: 0.3, max: 0.9, step: 0.05, hint: "Raise if clothing leaks into the board memory." },
+  { key: "minLostInk", label: "Ink lost before a board is saved", min: 10, max: 300, step: 5, hint: "Raise if you get too many saved boards." },
+];
+
 export function Studio({ initialSource, sampleSrc, simulated = false }: { initialSource: Source; sampleSrc?: string; simulated?: boolean }) {
   const [source, setSource] = useState<Source>(initialSource);
   const [phase, setPhase] = useState<Phase>("setup");
@@ -32,6 +41,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
   const [media, setMedia] = useState<{ blob: Blob; name: string } | null>(null);
   const [useAudio, setUseAudio] = useState(true);
   const [usePersonMask, setUsePersonMask] = useState(true);
+  const [tuning, setTuning] = useState<Partial<EngineConfig>>({});
   const [maskActive, setMaskActive] = useState(false);
   const [title, setTitle] = useState("");
   const [memoryMode, setMemoryMode] = useState<MemoryMode>("photo");
@@ -135,7 +145,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     const element = video.current!;
     if (cameraId === SIMULATED_CAMERA) restartSimulatedCamera();
     const grabber = new FrameGrabber(element);
-    const active = new LectureSession("camera", grabber.toCapture(quad!), { stableSeconds: 1.2 }, title);
+    const active = new LectureSession("camera", grabber.toCapture(quad!), { stableSeconds: 1.2, ...tuning }, title);
+    const wakeLock = await navigator.wakeLock?.request("screen").catch(() => null);
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
     setSession(active);
@@ -157,14 +168,15 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
       await new Promise(resolve => setTimeout(resolve, Math.max(10, LIVE_INTERVAL_MS - (performance.now() - begin))));
     }
     masker?.close();
-  }, [quad, title, useAudio, cameraId, usePersonMask]);
+    await wakeLock?.release().catch(() => undefined);
+  }, [quad, title, useAudio, cameraId, usePersonMask, tuning]);
 
   const startFile = useCallback(async () => {
     const element = video.current!;
     const duration = element.duration;
     const interval = Math.min(2, Math.max(0.5, duration / 1200));
     const grabber = new FrameGrabber(element);
-    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2) }, title || media?.name);
+    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name);
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
     setSession(active);
@@ -188,7 +200,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     if (stalled > 5) active.warnings.push("The browser stopped seeking through this video, so the end of it was not scanned.");
     masker?.close();
     await finish(active);
-  }, [quad, title, media, useAudio, usePersonMask, finish]);
+  }, [quad, title, media, useAudio, usePersonMask, tuning, finish]);
 
   /* ---------- render ---------- */
 
@@ -293,6 +305,20 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
             <label className="field"><span>Lecture title <em>(optional)</em></span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g. Calculus I — derivatives" /></label>
             <label className="toggle"><input type="checkbox" checked={useAudio} onChange={event => setUseAudio(event.target.checked)} /><span>{source === "camera" ? "Record speech from the microphone" : "Transcribe the video's audio"}</span></label>
             <label className="toggle"><input type="checkbox" checked={usePersonMask} onChange={event => setUsePersonMask(event.target.checked)} /><span>Detect the lecturer with MediaPipe <em>(on-device)</em></span></label>
+            <details className="tuning">
+              <summary>Advanced · tune the board engine</summary>
+              {TUNABLES.map(knob => {
+                const value = tuning[knob.key] ?? (knob.key === "stableSeconds" && source === "camera" ? 1.2 : DEFAULT_CONFIG[knob.key]);
+                return (
+                  <label key={knob.key}>
+                    <span>{knob.label} <b>{value}</b></span>
+                    <input type="range" min={knob.min} max={knob.max} step={knob.step} value={value} onChange={event => setTuning(current => ({ ...current, [knob.key]: Number(event.target.value) }))} />
+                    <small>{knob.hint}</small>
+                  </label>
+                );
+              })}
+              {Object.keys(tuning).length > 0 && <button type="button" onClick={() => setTuning({})}>Reset to defaults</button>}
+            </details>
             {error && <div className="error-box"><span>!</span><p>{error}</p></div>}
             {stage && <div className="field-note">{stage}</div>}
             <button className="start-button" disabled={!ready} onClick={() => (source === "camera" ? startLive() : startFile())}>
@@ -338,6 +364,7 @@ function BoardStrip({ boards }: { boards: BoardState[] }) {
               <strong>{board.page.reason === "erase" ? "Saved before erase" : board.page.reason === "manual" ? "Saved manually" : "Final board"}</strong>
               <time>{formatClock(board.page.t)}</time>
             </div>
+            {board.caption && <p className="board-caption" title={`Instant title by ${board.caption.model}`}><span>{board.caption.model.startsWith("gemma") ? "Gemma 4" : "AI"}</span>{board.caption.title}</p>}
             {board.status === "reading" && <p className="reading"><span className="spinner small" /> Gemini is reading this board…</p>}
             {board.status === "error" && <p className="board-error">{board.error}</p>}
             {board.status === "done" && (

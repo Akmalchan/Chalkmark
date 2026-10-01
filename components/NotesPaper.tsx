@@ -64,7 +64,7 @@ export function NotesPaper({ doc, urls }: Props) {
                 <figure key={board.id}>
                   <img src={urls[view === "paper" ? board.paper : board.raw]} alt={`Board as it was at ${formatClock(board.t)}`} width={board.width} height={board.height} />
                   <figcaption>
-                    <span>{board.reason === "erase" ? "Saved before erase" : board.reason === "manual" ? "Captured" : "Final board"} · {formatClock(board.t)}</span>
+                    <span>{board.caption ? `${board.caption} · ` : ""}{board.reason === "erase" ? "saved before erase" : board.reason === "manual" ? "captured" : "final board"} · {formatClock(board.t)}</span>
                     <button className="no-print" onClick={() => setBoardView(state => ({ ...state, [board.id]: view === "paper" ? "raw" : "paper" }))}>{view === "paper" ? "Show photo" : "Show clean"}</button>
                   </figcaption>
                 </figure>

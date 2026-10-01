@@ -68,6 +68,8 @@ export type NoteBlock = {
 
 export type BoardPage = {
   id: string;
+  /** Short topic title (Gemma 4), when available. */
+  caption?: string;
   t: number;
   reason: "erase" | "final" | "manual";
   paper: string;

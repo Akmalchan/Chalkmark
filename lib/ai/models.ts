@@ -25,7 +25,7 @@ const TASK_MODELS: Record<Task, string[]> = {
   compose: [...STRONG, ...LIGHT],
   quick: STRONG,
   // Optional open-weights path (Gemma via the Gemini API) for cheap live captions.
-  caption: [process.env.GEMMA_MODEL?.trim() || "gemma-4-31b-it", ...LIGHT],
+  caption: [process.env.GEMMA_MODEL?.trim() || "gemma-4-26b-a4b-it", "gemma-4-31b-it", ...LIGHT],
 };
 
 export function providerName(): ProviderName {
@@ -47,6 +47,11 @@ function languageModel(id: string, provider: ProviderName): LanguageModel {
 }
 
 export function candidates(task: Task): Array<{ id: string; provider: ProviderName }> {
+  // Gemma 4 is served by the Gemini API (AI Studio key), so captions use it whenever a key exists,
+  // even on Vertex deployments.
+  if (task === "caption" && process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return [...new Set(TASK_MODELS.caption)].map(id => ({ id, provider: "google" as const }));
+  }
   const provider = providerName();
   const override = process.env.GEMINI_MODEL?.trim();
   const ids = task === "caption" ? TASK_MODELS.caption : [override, ...TASK_MODELS[task]];
@@ -90,7 +95,7 @@ export class ModelChainError extends Error {
 const cooldownUntil = new Map<string, number>();
 function coolDown(id: string, error: unknown) {
   const status = statusOf(error);
-  const seconds = status === 429 ? 90 : status === 503 ? 25 : 0;
+  const seconds = status === 429 ? 90 : status === 503 || status === 500 ? 25 : 0;
   if (seconds) cooldownUntil.set(id, Date.now() + seconds * 1000);
 }
 
