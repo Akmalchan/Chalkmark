@@ -123,3 +123,6 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .youtube-preview div { max-width: 460px; padding: 24px; display: flex; flex-direction: column; gap: 10px; text-align: center; color: #e8ece6; }
 .youtube-preview strong { font-family: var(--font-serif); font-size: 28px; font-weight: 400; }
 .youtube-preview span { font-size: 13px; line-height: 1.55; color: #a8b4ae; }
+.file-drop .file-button { margin-top: 10px; padding: 12px 22px; border-radius: 24px; background: var(--acid); color: var(--ink); font-size: 14px; font-weight: 700; }
+.file-drop:hover .file-button { box-shadow: 0 0 0 4px rgba(216,255,101,.25); }
+.file-drop button { border: 0; margin-top: 0; text-decoration: underline; }

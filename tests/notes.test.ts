@@ -51,3 +51,14 @@ test("assembly never loses a block and honours duplicates", () => {
   assert.ok(sections[1].blocks.some(b => b.id === "d"), "forgotten block joins the section closest in time");
   assert.deepEqual([sections[0].start, sections[0].end], [5, 10]);
 });
+
+test("repeated writing from several photos collapses to the most complete copy", async () => {
+  const { dedupeBlocks } = await import("../lib/notes/dedupe");
+  const make = (id: string, content: string, kind: NoteBlock["kind"] = "text", legibility: NoteBlock["legibility"] = "clear") =>
+    ({ ...block(id, 1), kind, content, legibility });
+  const { kept } = dedupeBlocks([
+    make("a", "ROW PICTURE", "heading"), make("b", "Row picture:", "text"), make("c", "picture.", "text"),
+    make("d", "2x + y = 3", "equation"), make("e", "2x+y=3", "equation", "partial"), make("f", "x - 2y = -1", "equation"),
+  ]);
+  assert.deepEqual(kept.map(b => b.id).sort(), ["a", "d", "f"]);
+});

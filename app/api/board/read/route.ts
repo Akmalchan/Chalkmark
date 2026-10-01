@@ -19,6 +19,7 @@ Split everything written or drawn into blocks, in the order a student would read
 - graph: anything with axes. diagram: boxes, arrows, flowcharts, geometry, trees. drawing: any other sketch (a car, a cell, a circuit, a person). For these, content is a short caption and detail describes every label, axis, tick, arrow and part precisely.
 - box_2d must tightly enclose the ink of that block on the image: [ymin, xmin, ymax, xmax] as integers 0-1000.
 - Messy handwriting: use the spoken context (if given) and mathematical consistency to resolve ambiguous symbols. If something stays unreadable, write [?] in its place and set legibility to partial or unclear. Never invent content that is not on the board.
+- The photo may show only part of the board (the camera can pan, the lecturer can block it). Skip writing that is cut off by the image edge, half-erased, or partly hidden — another photo holds the complete version. Never output fragments such as a lone word or the tail of a sentence.
 - Ignore smudges, eraser marks, board edges, and anything that is not writing.`;
 
 export async function POST(request: Request) {

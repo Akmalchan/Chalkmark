@@ -96,3 +96,24 @@ test("exposure drift is not mistaken for writing or erasing", () => {
   assert.equal(snapshots, 0);
   assert.ok(engine.stats.inkCells >= 20);
 });
+
+test("a camera pan is not mistaken for erasing: one saved view, nothing committed mid-pan", () => {
+  const engine = new BoardEngine(fullFrameQuad(W, H));
+  const left = textBlock(60, 60, 220, 3);
+  const plot = graph(380, 60, 160);
+  const shifted = (strokes: Stroke[], dx: number) => strokes.map(s => ({ ...s, x0: s.x0 - dx, x1: s.x1 - dx }));
+  let t = 0, snapshots = 0, committedDuringPan = 0;
+  const feed = (strokes: Stroke[], panning = false) => {
+    const report = engine.ingest(render(strokes), t);
+    if (report.snapshot) snapshots += 1;
+    if (panning) committedDuringPan += report.committed;
+    t += STEP;
+  };
+  for (let i = 0; i < 8; i += 1) feed([...left, ...plot]);
+  // Camera pans right over ~3 s: content slides left 24 px per frame.
+  for (let i = 1; i <= 6; i += 1) feed(shifted([...left, ...plot], i * 24), true);
+  for (let i = 0; i < 8; i += 1) feed(shifted([...left, ...plot], 144));
+  assert.ok(engine.cameraMoves >= 3, `pan should be detected (got ${engine.cameraMoves})`);
+  assert.equal(committedDuringPan, 0, "nothing is committed while the camera moves");
+  assert.ok(snapshots <= 1, `one saved view at most, got ${snapshots}`);
+});

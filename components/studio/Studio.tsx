@@ -112,9 +112,9 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
     try {
       const response = await fetch(src);
       if (!response.ok) throw new Error("Sample lecture is missing.");
-      await openMedia(await response.blob(), "Sample lecture");
-      setQuad(SAMPLE_QUAD as Quad);
-      setTitle(title => title || "Sample lecture");
+      const isSample = src === "/demo/sample-lecture.mp4";
+      await openMedia(await response.blob(), isSample ? "Sample lecture" : decodeURIComponent(src.split("/").pop() ?? "Lecture"));
+      if (isSample) { setQuad(SAMPLE_QUAD as Quad); setTitle(title => title || "Sample lecture"); }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sample could not be loaded.");
     } finally { setStage(""); }
@@ -296,11 +296,12 @@ export function Studio({ initialSource, sampleSrc, simulated = false }: { initia
               </div>
             )}
             {!videoSize.width && source === "file" && (
-              <label className="file-drop">
+              <label className="file-drop" onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void openMedia(file, file.name); }}>
                 <input type="file" accept="video/*" onChange={event => { const file = event.target.files?.[0]; if (file) void openMedia(file, file.name); }} />
                 <strong>Drop a lecture recording</strong>
                 <span>MP4, MOV or WebM. It is scanned on this device; only board images and audio are sent.</span>
-                <button type="button" onClick={event => { event.preventDefault(); void loadSample("/demo/sample-lecture.mp4"); }}>Try the sample lecture</button>
+                <span className="file-button" role="button">Choose a video file</span>
+                <button type="button" onClick={event => { event.preventDefault(); void loadSample("/demo/sample-lecture.mp4"); }}>or try the sample lecture</button>
               </label>
             )}
           </div>

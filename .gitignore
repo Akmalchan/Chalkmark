@@ -11,3 +11,4 @@ outputs/
 *.tsbuildinfo
 .data/
 public/mediapipe/
+public/dev/

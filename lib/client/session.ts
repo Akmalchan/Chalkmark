@@ -5,6 +5,7 @@ import type { Quad, RGBAImage } from "../board/geometry";
 import { renderPaper } from "../board/paper";
 import { freshness, fromGeminiBox, tightenToInk, writtenSpan, type Box } from "../board/blocks";
 import { assembleSections, transcriptText } from "../notes/assemble";
+import { dedupeBlocks } from "../notes/dedupe";
 import { FIGURE_KINDS, type BoardPage, type BoardRead, type Composition, type NoteBlock, type NotesDoc, type TranscriptSegment } from "../notes/schema";
 import { cropImage, imageToBlob } from "./media";
 
@@ -232,8 +233,8 @@ export class LectureSession {
 
   /** Gemini's section pass. Safe to call again if it failed (e.g. the model was busy). */
   async compose(): Promise<NotesDoc> {
-    const blocks = this.boards.flatMap(board => board.blocks)
-      .sort((a, b) => (a.writtenAt ?? Infinity) - (b.writtenAt ?? Infinity));
+    const { kept: blocks } = dedupeBlocks(this.boards.flatMap(board => board.blocks)
+      .sort((a, b) => (a.writtenAt ?? Infinity) - (b.writtenAt ?? Infinity)));
     let composition: Composition;
     let composed = true;
     const warnings = this.warnings.filter(warning => !warning.startsWith(COMPOSE_WARNING));

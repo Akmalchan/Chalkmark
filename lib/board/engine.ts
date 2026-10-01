@@ -82,6 +82,8 @@ export type PersonMask = { width: number; height: number; data: ArrayLike<number
 
 export type FrameReport = {
   t: number;
+  /** The camera panned/zoomed this frame: nothing is committed until it settles. */
+  cameraMoved: boolean;
   committed: number;
   occluded: number;
   moving: number;
@@ -143,6 +145,12 @@ export class BoardEngine {
   private readonly refBg: Float32Array;
   private boardChroma: [number, number, number] = [0, 0, 0];
 
+  private readonly colProfile: Float32Array;
+  private readonly rowProfile: Float32Array;
+  private readonly prevColProfile: Float32Array;
+  private readonly prevRowProfile: Float32Array;
+  cameraMoves = 0;
+
   private samples = 0;
   private commits = 0;
   private lastT = 0;
@@ -192,6 +200,10 @@ export class BoardEngine {
     this.dirty = new Uint8Array(cells);
     this.observations = new Uint8Array(cells);
     this.refBg = new Float32Array(cells);
+    this.colProfile = new Float32Array(this.aw);
+    this.rowProfile = new Float32Array(this.ah);
+    this.prevColProfile = new Float32Array(this.aw);
+    this.prevRowProfile = new Float32Array(this.ah);
   }
 
   get stats(): EngineStats {
@@ -243,6 +255,14 @@ export class BoardEngine {
     }
     this.dilateOcclusion();
 
+    // A pan or zoom shifts the whole board at once. Until the camera settles, nothing is trusted:
+    // otherwise every pan would look like an erase and half-views would be saved as boards.
+    const cameraMoved = this.detectCameraMotion();
+    if (cameraMoved) {
+      this.cameraMoves += 1;
+      this.stillCount.fill(0);
+    }
+
     // Decide which cells to commit and whether any of them would destroy unsaved ink.
     const toCommit: number[] = [];
     const losses: number[] = [];
@@ -270,8 +290,36 @@ export class BoardEngine {
     this.commits += toCommit.length;
 
     this.prevInk.set(this.ink);
+    this.prevColProfile.set(this.colProfile);
+    this.prevRowProfile.set(this.rowProfile);
     this.hasPrev = true;
-    return { t, committed: toCommit.length, occluded: occludedCount, moving: movingCount, erasing: losses.length, snapshot };
+    return { t, cameraMoved, committed: toCommit.length, occluded: occludedCount, moving: movingCount, erasing: losses.length, snapshot };
+  }
+
+  /**
+   * Global motion test on 1-D ink profiles (column and row sums of board-like ink). If a single
+   * shift explains most of the change between frames, the camera moved. A lecturer walking changes
+   * the profiles too, but no one shift explains it, and body pixels are excluded as non-board.
+   */
+  private detectCameraMotion(): boolean {
+    this.colProfile.fill(0);
+    this.rowProfile.fill(0);
+    for (let y = 0; y < this.ah; y += 1) {
+      const row = y * this.aw;
+      for (let x = 0; x < this.aw; x += 1) {
+        const p = row + x;
+        if (!this.boardLikePx[p]) continue;
+        const v = this.ink[p];
+        this.colProfile[x] += v;
+        this.rowProfile[y] += v;
+      }
+    }
+    if (!this.hasPrev) return false;
+    const horizontal = bestShift(this.prevColProfile, this.colProfile, Math.round(this.aw * 0.2));
+    const vertical = bestShift(this.prevRowProfile, this.rowProfile, Math.round(this.ah * 0.2));
+    const explained = (m: { shift: number; zeroError: number; bestError: number; change: number }) =>
+      Math.abs(m.shift) >= 2 && m.change > 0.12 && m.bestError < m.zeroError * 0.55;
+    return explained(horizontal) || explained(vertical);
   }
 
   /** Save whatever ink is not yet in a snapshot (end of lecture, or a manual capture). */
@@ -605,6 +653,27 @@ export class BoardEngine {
     this.snapshots.push(snapshot);
     return snapshot;
   }
+}
+
+/** Shift of profile `b` relative to `a` that best aligns them (mean absolute difference over the overlap). */
+function bestShift(a: Float32Array, b: Float32Array, maxShift: number) {
+  const n = a.length;
+  let total = 0;
+  for (let i = 0; i < n; i += 1) total += a[i] + b[i];
+  const mean = total / (2 * n) || 1;
+  const errorAt = (shift: number) => {
+    let sum = 0, count = 0;
+    for (let i = Math.max(0, -shift); i < Math.min(n, n - shift); i += 1) { sum += Math.abs(a[i] - b[i + shift]); count += 1; }
+    return count ? sum / count / mean : Infinity;
+  };
+  const zeroError = errorAt(0);
+  let shift = 0, bestError = zeroError;
+  for (let s = -maxShift; s <= maxShift; s += 1) {
+    if (!s) continue;
+    const error = errorAt(s);
+    if (error < bestError) { bestError = error; shift = s; }
+  }
+  return { shift, zeroError, bestError, change: zeroError };
 }
 
 function median(values: ArrayLike<number>): number {
