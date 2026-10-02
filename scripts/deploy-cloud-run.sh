@@ -21,6 +21,10 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 gcloud firestore databases create --location=nam5 --project "$PROJECT" 2>/dev/null || echo "Firestore already exists"
 gcloud storage buckets create "gs://$BUCKET" --location="$REGION" --uniform-bucket-level-access --project "$PROJECT" 2>/dev/null || echo "Bucket already exists"
 
+# Source deploys build into this repository; gcloud only offers to create it interactively.
+gcloud artifacts repositories create cloud-run-source-deploy --repository-format=docker --location="$REGION" \
+  --project "$PROJECT" 2>/dev/null || echo "Artifact Registry repository already exists"
+
 gcloud iam service-accounts create "$SA_NAME" --display-name "Chalkmark Cloud Run" --project "$PROJECT" 2>/dev/null || echo "Service account already exists"
 for role in roles/aiplatform.user roles/datastore.user; do
   gcloud projects add-iam-policy-binding "$PROJECT" --member "serviceAccount:$SA" --role "$role" --condition=None >/dev/null
