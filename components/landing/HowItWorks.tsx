@@ -326,37 +326,30 @@ function StepArt({ kind }: { kind: ArtKind }) {
   }
 }
 
-/** One frame through the engine's eyes: just the cell grid and each cell's state. */
+/** Deterministic pseudo-random numbers, so server and client render the same grid. */
+function seeded(seed: number) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The cell grid, with cells lighting up at random as they are judged. */
 function TrustArt() {
-  const COLS = 28, ROWS = 14, SIZE = 10, GAP = 2, X0 = 12, Y0 = 21;
-  const at = (c: number, r: number) => r * COLS + c;
-  const person = new Set<number>();
-  for (let r = 1; r <= 3; r += 1) for (let c = 19; c <= 21; c += 1) person.add(at(c, r));
-  for (let r = 4; r < ROWS; r += 1) for (let c = 18; c <= 22; c += 1) person.add(at(c, r));
-  const buffer = new Set<number>();
-  for (const p of person) {
-    const pc = p % COLS, pr = Math.floor(p / COLS);
-    for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {
-      const c = pc + dc, r = pr + dr;
-      if (c >= 0 && r >= 0 && c < COLS && r < ROWS && !person.has(at(c, r))) buffer.add(at(c, r));
-    }
-  }
-  // Trusted ink laid out like three lines of writing (words separated by gaps), on both sides of the lecturer.
-  const ink = new Set<number>();
-  const words: [number, number, number][] = [
-    [2, 1, 4], [7, 1, 3], [11, 1, 4], [24, 1, 3],
-    [2, 2, 3], [6, 2, 6], [24, 2, 2],
-    [2, 6, 5], [8, 6, 4], [24, 6, 3],
-    [2, 7, 2], [5, 7, 7],
-    [2, 10, 3], [6, 10, 5], [12, 10, 2], [24, 10, 2],
-  ];
-  for (const [c, r, n] of words) for (let k = 0; k < n; k += 1) if (!person.has(at(c + k, r)) && !buffer.has(at(c + k, r))) ink.add(at(c + k, r));
-  const moving = new Set<number>([at(13, 7), at(14, 7), at(15, 6)]);
-  const cls = (i: number) => person.has(i) ? "pa-red" : buffer.has(i) ? "pa-buffer" : moving.has(i) ? "pa-yellow pa-blink" : ink.has(i) ? "pa-lime" : "pa-cell";
+  const COLS = 26, ROWS = 13, SIZE = 10, GAP = 3, X0 = 11, Y0 = 21;
+  const random = seeded(7);
   return svg(<>
-    {Array.from({ length: COLS * ROWS }, (_, i) => (
-      <rect key={i} x={X0 + (i % COLS) * (SIZE + GAP)} y={Y0 + Math.floor(i / COLS) * (SIZE + GAP)} width={SIZE} height={SIZE} rx="2" className={cls(i)} />
-    ))}
+    {Array.from({ length: COLS * ROWS }, (_, i) => {
+      const roll = random(), duration = 3 + random() * 4, delay = random() * duration;
+      const tone = roll < 0.1 ? "coral" : roll < 0.8 ? "lime" : null;
+      return (
+        <rect key={i} x={X0 + (i % COLS) * (SIZE + GAP)} y={Y0 + Math.floor(i / COLS) * (SIZE + GAP)} width={SIZE} height={SIZE} rx="2.5"
+          className={tone ? `pa-shine ${tone}` : "pa-cell"}
+          style={tone ? { animationDuration: `${duration.toFixed(2)}s`, animationDelay: `-${delay.toFixed(2)}s` } : undefined} />
+      );
+    })}
   </>);
 }
 
