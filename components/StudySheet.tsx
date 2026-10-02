@@ -28,7 +28,7 @@ export function StudySheet({ doc, sheet, urls }: { doc: NotesDoc; sheet: Sheet; 
                 const html = mathHtml(formula.latex, true);
                 return (
                   <div className="sheet-formula" key={i}>
-                    {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : <code>{formula.latex}</code>}
+                    {html ? <div className="sheet-formula-math" dangerouslySetInnerHTML={{ __html: html }} /> : <code className="sheet-formula-math">{formula.latex}</code>}
                     {formula.label && <small>{formula.label}</small>}
                   </div>
                 );

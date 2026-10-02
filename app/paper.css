@@ -168,10 +168,12 @@
 .sheet-section h2 span { font-family: var(--font-mono), monospace; font-size: 10px; color: #a5462d; }
 .sheet-section ul, .sheet-section ol { margin: 2px 0 4px; padding-left: 16px; }
 .sheet-section li { margin: 1px 0; }
-.sheet-formula { margin: 3px 0; padding: 3px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f7f4ec; border-radius: 6px; }
+.sheet-formula { margin: 3px 0; padding: 3px 8px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 8px; background: #f7f4ec; border-radius: 6px; }
+/* A wide formula takes the full row and its label wraps under it, inside the box (never past the edge). */
+.sheet-formula-math { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 .sheet-formula .katex-display { margin: 0; text-align: left; }
 .sheet-formula .katex { font-size: 1.02em; }
-.sheet-formula small { flex: none; max-width: 40%; font-family: var(--font-sans), sans-serif; font-size: 10px; color: #6f7a74; text-align: right; }
+.sheet-formula small { flex: 0 1 auto; margin-left: auto; max-width: 100%; font-family: var(--font-sans), sans-serif; font-size: 10px; color: #6f7a74; text-align: right; }
 .sheet-figure { margin: 4px 0 6px; }
 .sheet-figure .redraw-svg, .sheet-figure img { max-height: 46mm; width: 100%; object-fit: contain; }
 .sheet-figure figcaption { font-family: var(--font-sans), sans-serif; font-size: 10px; color: #6f7a74; text-align: center; }
