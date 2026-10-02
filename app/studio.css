@@ -133,3 +133,10 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .quick-button:disabled { opacity: .45; cursor: not-allowed; }
 .subject-field .subject-switch { align-self: flex-start; flex-wrap: wrap; }
 .subject-note { display: block; margin-top: 6px; font-size: 12px; font-style: normal; color: #5f6a64; }
+
+/* Real pages (PDF) */
+.pdf-download { padding: 9px 16px; border: 0; border-radius: 10px; background: var(--ink); color: var(--acid); font-size: 13px; font-weight: 700; cursor: pointer; }
+.pdf-download:disabled { opacity: .6; cursor: progress; }
+.pdf-error { max-width: 8.5in; margin: 8px auto 0; color: #b3322d; font-size: 13px; }
+.pdf-pages { max-width: 9in; margin: 18px auto 0; padding: 0 12px; }
+.pdf-pages iframe { width: 100%; height: min(86vh, 11.5in); border: 1px solid #d9d5c8; border-radius: 10px; background: #e9e6dc; box-shadow: 0 18px 40px rgba(22,34,30,.12); }

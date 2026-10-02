@@ -42,7 +42,7 @@ fi
 
 gcloud run deploy "$SERVICE" --source . --project "$PROJECT" --region "$REGION" \
   --service-account "$SA" --allow-unauthenticated \
-  --memory 1Gi --cpu 1 --timeout 300 --concurrency 40 \
+  --memory 2Gi --cpu 1 --timeout 300 --concurrency 20 \
   --set-env-vars "$ENV_VARS" "${SECRETS[@]}"
 
 gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)'

@@ -13,7 +13,11 @@ RUN npm run build
 
 FROM node:22-slim AS run
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=8080 HOSTNAME=0.0.0.0
+# Headless Chromium prints the notes as real US Letter / A4 PDFs (/api/pdf); Noto/Liberation give it proper fonts.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends chromium fonts-noto-core fonts-liberation2 fonts-dejavu-core \
+  && rm -rf /var/lib/apt/lists/*
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=8080 HOSTNAME=0.0.0.0 CHROME_PATH=/usr/bin/chromium
 COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public

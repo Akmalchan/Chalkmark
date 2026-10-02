@@ -66,7 +66,7 @@ export function NotesActions({ doc, files, urls, onRestart, sharedUrl, markdown:
         <div className="notes-actions-buttons">
           {error && <span className="action-error">{error}</span>}
           <button className="ghost" onClick={exportMarkdown}>Markdown</button>
-          <button className="ghost" onClick={() => window.print()}>Print / PDF</button>
+          <button className="ghost" onClick={() => window.print()}>Print</button>
           <button className="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : sharedUrl ? "Share" : "Save & share"}</button>
           {onRestart && <button className="ghost" onClick={onRestart}>New capture</button>}
         </div>

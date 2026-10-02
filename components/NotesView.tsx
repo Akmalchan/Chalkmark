@@ -26,6 +26,10 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
   const [sheet, setSheet] = useState<Sheet | undefined>(doc.sheet);
   const [sheetError, setSheetError] = useState("");
   const [paper, setPaper] = useState<PaperSize>("Letter");
+  const [mode, setMode] = useState<"screen" | "pages">("screen");
+  const [pdf, setPdf] = useState<{ key: string; url: string; name: string } | null>(null);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState("");
   const started = useRef(false);
 
   useEffect(() => {
@@ -65,6 +69,46 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
   }, []);
 
   const current = sheet ? { ...doc, sheet } : doc;
+  const pdfView = view === "sheet" && sheet ? "sheet" : "full";
+  const pdfKey = `${pdfView}-${paper}-${sheet ? "s" : "n"}`;
+
+  /** Real US Letter / A4 pages, rendered by the server from the same components (see /api/pdf). */
+  const makePdf = async () => {
+    if (pdf?.key === pdfKey) return pdf;
+    setPdfBusy(true);
+    setPdfError("");
+    try {
+      // Figures and boards live in blob: URLs on this device; the renderer needs them inline.
+      const inline: Record<string, string> = {};
+      await Promise.all(Object.entries(urls).map(async ([name, url]) => {
+        if (!url.startsWith("blob:")) { inline[name] = url; return; }
+        const blob = await (await fetch(url)).blob();
+        inline[name] = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(blob); });
+      }));
+      const response = await fetch("/api/pdf", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ view: pdfView, paper, doc: current, urls: inline }) });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "The PDF could not be made.");
+      const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "")?.[1] ?? "chalkmark.pdf";
+      const made = { key: pdfKey, url: URL.createObjectURL(await response.blob()), name };
+      if (pdf) URL.revokeObjectURL(pdf.url);
+      setPdf(made);
+      return made;
+    } catch (error) {
+      setPdfError(error instanceof Error ? error.message : "The PDF could not be made.");
+      return null;
+    } finally { setPdfBusy(false); }
+  };
+  const downloadPdf = async () => {
+    const made = await makePdf();
+    if (!made) return;
+    const link = document.createElement("a");
+    link.href = made.url; link.download = made.name;
+    document.body.append(link); link.click(); link.remove();
+  };
+  useEffect(() => {
+    if (mode === "pages" && pdf?.key !== pdfKey && !pdfBusy) void makePdf();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, pdfKey]);
+
   return (
     <main className="studio-done">
       <style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: 12mm 13mm; }`}</style>
@@ -79,9 +123,23 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
           <button className={paper === "Letter" ? "active" : ""} onClick={() => choosePaper("Letter")}>US Letter</button>
           <button className={paper === "A4" ? "active" : ""} onClick={() => choosePaper("A4")}>A4</button>
         </div>
+        <div className="segmented" role="tablist" aria-label="Show as">
+          <button className={mode === "screen" ? "active" : ""} onClick={() => setMode("screen")}>Screen</button>
+          <button className={mode === "pages" ? "active" : ""} onClick={() => setMode("pages")}>Pages</button>
+        </div>
+        <button className="pdf-download" disabled={pdfBusy || (view === "sheet" && !sheet)} onClick={() => void downloadPdf()}>
+          {pdfBusy ? "Making PDF…" : `Download PDF · ${paper === "A4" ? "A4" : "US Letter"}`}
+        </button>
       </div>
+      {pdfError && <p className="pdf-error no-print">{pdfError}</p>}
       {banner}
-      {view === "full" ? <NotesPaper doc={doc} urls={urls} /> : sheet ? (
+      {mode === "pages" ? (
+        <div className="pdf-pages no-print">
+          {pdf?.key === pdfKey
+            ? <iframe src={`${pdf.url}#view=FitH&toolbar=1`} title={`${doc.title} — ${paper} pages`} />
+            : <div className="sheet-pending"><span className="spinner" /><p>Laying out {paper === "A4" ? "A4" : "US Letter"} pages…</p></div>}
+        </div>
+      ) : view === "full" ? <NotesPaper doc={doc} urls={urls} /> : sheet ? (
         <div className={`sheet-page paper-${paper.toLowerCase()}`}><StudySheet doc={doc} sheet={sheet} urls={urls} /></div>
       ) : (
         <div className="sheet-pending no-print">

@@ -2,7 +2,7 @@
 const nextConfig = {
   // Self-contained server bundle for the Cloud Run container (see Dockerfile).
   output: "standalone",
-  serverExternalPackages: ["@google-cloud/firestore", "@google-cloud/storage", "google-auth-library", "sharp"],
+  serverExternalPackages: ["@google-cloud/firestore", "@google-cloud/storage", "google-auth-library", "sharp", "puppeteer-core"],
 };
 
 export default nextConfig;

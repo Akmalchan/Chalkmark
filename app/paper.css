@@ -212,3 +212,16 @@
 .paper-code pre { margin: 0; padding: 12px 14px; border-left: 3px solid #183a2b; border-radius: 0 8px 8px 0; background: #f3f1ea; overflow-x: auto; }
 .paper-code code { font-family: var(--font-mono), monospace; font-size: 13px; line-height: 1.55; color: #1d2622; white-space: pre; }
 @media print { .paper-code pre { white-space: pre-wrap; } }
+
+/* ---------- PDF print page (/print, rendered by headless Chrome) ---------- */
+.print-root { background: #fff; margin: 0; padding: 0; }
+.print-root .sheet-page { margin: 0; padding: 0; }
+.print-root .sheet { max-width: none !important; box-shadow: none !important; border: 0 !important; }
+.print-empty { padding: 40px; font-family: var(--font-sans), sans-serif; color: #6c7670; }
+@media print {
+  .print-root .paper { box-shadow: none !important; border: 0 !important; margin: 0 !important; max-width: none !important; }
+  .print-root figure, .print-root .paper-equation, .print-root .paper-table, .print-root .paper-code, .print-root .sheet-example { break-inside: avoid; }
+  .print-root h2, .print-root h3 { break-after: avoid; }
+}
+.print-root .sheet, .print-root .paper, .print-root .sheet-page { background: #fff !important; }
+html:has(.print-root), body:has(.print-root) { background: #fff !important; }
