@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Logo, Mascot } from "@/components/brand/Logo";
 import { EngineDemo } from "@/components/landing/EngineDemo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Partners } from "@/components/landing/Partners";
+import { CopyCommand } from "@/components/landing/CopyCommand";
 
 const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
 const LINKEDIN_URL = "https://www.linkedin.com/in/ashovkatov";
@@ -25,6 +27,7 @@ export default function Home() {
           <a href="#demo">Live engine</a>
           <a href="#how">How it works</a>
           <a href="#results">Results</a>
+          <a href="#open-source">Open source</a>
         </nav>
         <div className="nav-actions">
           <Link className="nav-cta ghost" href="/studio?sample=1">Sample</Link>
@@ -36,7 +39,7 @@ export default function Home() {
       <section className="hero">
         <div className="hero-copy">
           <div className="hero-mascot" aria-hidden="true"><Mascot size={96} /></div>
-          <div className="hero-kicker">Lecture reconstruction, not recording</div>
+          <div className="hero-kicker">Lecture reconstruction, not recording<a className="oss-pill" href={GITHUB_URL} target="_blank" rel="noreferrer">open source</a></div>
           <h1>The board forgets.<br /><em>Your notes don’t.</em></h1>
           <p>Point any camera at the board. Chalkmark looks straight through the lecturer, saves every board the moment before it’s erased, and Gemini turns the ink — equations, graphs, even a sketch of a car — into a clean one-page study sheet.</p>
           <div className="hero-actions">
@@ -54,6 +57,8 @@ export default function Home() {
           <div className="paper-output"><small>CALCULUS I</small><b>Derivatives<br />&amp; power rule</b><i /><i /><i className="short" /><span>0 MB video uploaded</span></div>
         </div>
       </section>
+
+      <Partners />
 
       <section className="tech" id="demo">
         <div className="tech-inner">
@@ -94,6 +99,24 @@ export default function Home() {
           </div>
           <div className="stack" aria-label="Built with">
             {["Gemini · Vertex AI", "Gemma 4", "MediaPipe", "Cloud Run", "Firestore", "Cloud Storage", "WebCodecs", "KaTeX"].map(item => <span key={item}>{item}</span>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="tech opensource" id="open-source">
+        <div className="tech-inner opensource-inner">
+          <div>
+            <span className="tech-eyebrow">// open source</span>
+            <h2>Read every line. Run it yourself.</h2>
+            <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Clone it, run it with your own Gemini key, or put it on Cloud Run with one script.</p>
+            <div className="opensource-actions">
+              <a className="cta big primary" href={GITHUB_URL} target="_blank" rel="noreferrer">View on GitHub<span>Akmalchan/Chalkmark</span></a>
+            </div>
+          </div>
+          <div className="opensource-terminal">
+            <CopyCommand command={`git clone ${GITHUB_URL}`} />
+            <CopyCommand command="npm install && npm run dev" />
+            <CopyCommand command="PROJECT=my-project ./scripts/deploy-cloud-run.sh" />
           </div>
         </div>
       </section>
