@@ -20,11 +20,11 @@ export async function POST(request: Request) {
     const id = youtubeId(String(url ?? "").trim());
     if (!id) return NextResponse.json({ error: "Paste a public YouTube watch link (youtube.com/watch?v=… or youtu.be/…)." }, { status: 400 });
     const duration = await youtubeDuration(id);
-    const result = await withModels("quick", async (_model, meta) => {
+    const result = await withModels("youtube-scan", async (_model, meta) => {
       const response = await generateContentRest(meta.id, meta.provider, {
         system: instructions,
         parts: [
-          { fileData: { fileUri: `https://www.youtube.com/watch?v=${id}` }, videoMetadata: { fps: 0.25 } },
+          { fileData: { fileUri: `https://www.youtube.com/watch?v=${id}`, mimeType: "video/mp4" }, videoMetadata: { fps: 0.25 } },
           { text: duration ? `The video is exactly ${duration} seconds long.` : "Scan the whole video." },
         ],
         schema: geminiJsonSchema(youtubeScanSchema),

@@ -24,7 +24,12 @@ export class FrameGrabber {
   }
 
   grab(): RGBAImage {
-    this.context.drawImage(this.video, 0, 0, this.width, this.height);
+    return this.grabFrom(this.video);
+  }
+
+  /** Same as grab(), from an already decoded frame (see openFrameDecoder). */
+  grabFrom(source: CanvasImageSource): RGBAImage {
+    this.context.drawImage(source, 0, 0, this.width, this.height);
     const image = this.context.getImageData(0, 0, this.width, this.height);
     return { width: image.width, height: image.height, data: image.data };
   }
@@ -47,6 +52,21 @@ export function waitFor(target: EventTarget, event: string, timeoutMs: number): 
 }
 
 /** Seek with a timeout: some browsers occasionally never fire `seeked`. Returns false if it stalled. */
+/**
+ * Decode frames of a local video at sorted timestamps with WebCodecs, in one forward pass. Seeking a
+ * <video> element decodes from the previous keyframe on every jump (slow in Safari); this decodes
+ * each packet at most once. Returns null when the browser cannot decode the track, so callers can
+ * fall back to seeking.
+ */
+export async function openFrameDecoder(file: Blob, width: number, height: number) {
+  const mb = await import("mediabunny");
+  const input = new mb.Input({ source: new mb.BlobSource(file), formats: mb.ALL_FORMATS });
+  const track = await input.getPrimaryVideoTrack();
+  if (!track || !(await track.canDecode())) return null;
+  const sink = new mb.CanvasSink(track, { width, height, fit: "fill", poolSize: 2 });
+  return (times: number[]) => sink.canvasesAtTimestamps(times);
+}
+
 export async function seekTo(video: HTMLVideoElement, time: number, timeoutMs = 5000): Promise<boolean> {
   const target = Math.min(Math.max(0, time), Math.max(0, video.duration - 0.05));
   if (Math.abs(video.currentTime - target) < 0.01 && video.readyState >= 2) return true;

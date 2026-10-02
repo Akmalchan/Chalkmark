@@ -12,7 +12,7 @@ import { z } from "zod";
  * malformed-output failures, never on auth errors.
  */
 
-export type Task = "read" | "transcribe" | "compose" | "quick" | "caption";
+export type Task = "read" | "transcribe" | "compose" | "quick" | "caption" | "youtube-scan" | "youtube-read";
 export type ProviderName = "vertex" | "google";
 
 // Pro leads where quality decides the notes (reading boards, redrawing figures, composing notes and the sheet).
@@ -26,6 +26,9 @@ const TASK_MODELS: Record<Task, string[]> = {
   transcribe: [...STRONG, ...LIGHT],
   compose: [...PRO, ...STRONG, ...LIGHT],
   quick: [...STRONG, ...LIGHT],
+  // YouTube links are read by the Gemini API (Vertex rejects them), so these run on the API key when one is set.
+  "youtube-scan": [...STRONG, ...LIGHT],
+  "youtube-read": [...PRO, ...STRONG, ...LIGHT],
   // Optional open-weights path (Gemma via the Gemini API) for cheap live captions.
   caption: [process.env.GEMMA_MODEL?.trim() || "gemma-4-26b-a4b-it", "gemma-4-31b-it", ...LIGHT],
 };
@@ -53,6 +56,9 @@ export function candidates(task: Task): Array<{ id: string; provider: ProviderNa
   // even on Vertex deployments.
   if (task === "caption" && process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     return [...new Set(TASK_MODELS.caption)].map(id => ({ id, provider: "google" as const }));
+  }
+  if (task.startsWith("youtube") && process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+    return [...new Set(TASK_MODELS[task])].map(id => ({ id, provider: "google" as const }));
   }
   const provider = providerName();
   const override = process.env.GEMINI_MODEL?.trim();
@@ -94,13 +100,15 @@ export class ModelChainError extends Error {
  * Models that just returned 429 (quota) or 503 (overloaded) are skipped for a short while, so the
  * next board read goes straight to a model that is answering instead of waiting on retries.
  */
+// Keyed by provider and model: a quota on the Gemini API must not bench the same model on Vertex.
 const cooldownUntil = new Map<string, number>();
-function coolDown(id: string, error: unknown) {
+const cooldownKey = (candidate: { id: string; provider: ProviderName }) => `${candidate.provider}:${candidate.id}`;
+function coolDown(key: string, error: unknown) {
   const status = statusOf(error);
   // A spent daily quota will not come back in a minute: skip that model for a good while.
   const quota = status === 429 && error instanceof Error && /quota/i.test(error.message);
   const seconds = quota ? 15 * 60 : status === 429 ? 90 : status === 503 || status === 500 ? 25 : 0;
-  if (seconds) cooldownUntil.set(id, Date.now() + seconds * 1000);
+  if (seconds) cooldownUntil.set(key, Date.now() + seconds * 1000);
 }
 
 export async function withModels<T>(
@@ -109,7 +117,7 @@ export async function withModels<T>(
 ): Promise<{ value: T; model: string; provider: ProviderName; attempts: Attempted[] }> {
   if (!aiConfigured()) throw new ModelChainError("Gemini is not configured. Set GOOGLE_GENERATIVE_AI_API_KEY (local) or GOOGLE_VERTEX_PROJECT (Google Cloud).", [], null);
   const all = candidates(task);
-  const available = all.filter(candidate => (cooldownUntil.get(candidate.id) ?? 0) <= Date.now());
+  const available = all.filter(candidate => (cooldownUntil.get(cooldownKey(candidate)) ?? 0) <= Date.now());
   // If everything is cooling down, try them all anyway rather than failing outright.
   const list = available.length ? available : all;
   const attempts: Attempted[] = [];
@@ -120,7 +128,7 @@ export async function withModels<T>(
       return { value, model: candidate.id, provider: candidate.provider, attempts };
     } catch (error) {
       lastError = error;
-      coolDown(candidate.id, error);
+      coolDown(cooldownKey(candidate), error);
       attempts.push({ model: candidate.id, provider: candidate.provider, status: statusOf(error), error: error instanceof Error ? error.message.slice(0, 200) : String(error) });
       console.warn(`[chalkmark] ${task} failed on ${candidate.id}`, statusOf(error) ?? "", error instanceof Error ? error.message.slice(0, 160) : "");
       if (!worthAnotherModel(error)) break;

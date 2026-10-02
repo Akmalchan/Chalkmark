@@ -4,7 +4,7 @@ import { Logo } from "@/components/brand/Logo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
 import { DEFAULT_CONFIG, type EngineConfig } from "@/lib/board/engine";
-import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
+import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, openFrameDecoder, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
 import { PersonMasker } from "@/lib/client/person";
 import { runYouTube } from "@/lib/client/youtube";
@@ -199,14 +199,35 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
         .then(chunks => Promise.all(chunks.map(chunk => active.transcribe(chunk.blob, chunk.offset))))
         .catch(cause => { active.warnings.push(`Speech was not transcribed: ${cause instanceof Error ? cause.message : "audio could not be extracted"}.`); });
     }
-    let stalled = 0;
-    for (let t = 0; t <= duration && running.current; t += interval) {
-      if (!(await seekTo(element, t))) { stalled += 1; if (stalled > 5) break; continue; }
-      const frame = grabber.grab();
+    const times: number[] = [];
+    for (let t = 0; t <= duration; t += interval) times.push(t);
+    // Progress is drawn at most ~12 times a second; the scan itself runs as fast as frames decode.
+    let lastPaint = 0;
+    const step = (frame: ReturnType<FrameGrabber["grab"]>, t: number) => {
       active.ingest(frame, t, masker?.mask(grabber.canvas, t * 1000) ?? undefined);
-      setScan(t / duration);
-      setElapsed(t);
-      setTick(value => value + 1);
+      const now = performance.now();
+      if (now - lastPaint > 80 || t + interval > duration) {
+        lastPaint = now;
+        setScan(t / duration);
+        setElapsed(t);
+        setTick(value => value + 1);
+      }
+    };
+    let stalled = 0;
+    const decode = media ? await openFrameDecoder(media.blob, grabber.width, grabber.height).catch(() => null) : null;
+    if (decode) {
+      let index = 0;
+      for await (const wrapped of decode(times)) {
+        if (!running.current) break;
+        const t = times[index++];
+        if (wrapped) step(grabber.grabFrom(wrapped.canvas), t);
+      }
+    } else {
+      for (const t of times) {
+        if (!running.current) break;
+        if (!(await seekTo(element, t))) { stalled += 1; if (stalled > 5) break; continue; }
+        step(grabber.grab(), t);
+      }
     }
     if (stalled > 5) active.warnings.push("The browser stopped seeking through this video, so the end of it was not scanned.");
     masker?.close();
@@ -228,6 +249,11 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
       setPhase("setup");
     } finally { setStage(""); }
   }, [youtubeUrl, title]);
+
+  // Dev-only: lets the frame decoder and person masker be benchmarked from the console.
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __openFrameDecoder: openFrameDecoder, __PersonMasker: PersonMasker });
+  }, []);
 
   /* ---------- render ---------- */
 

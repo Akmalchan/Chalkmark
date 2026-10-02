@@ -24,11 +24,11 @@ export async function POST(request: Request) {
     if (!id || typeof t !== "number" || !Number.isFinite(t)) return NextResponse.json({ error: "Bad request" }, { status: 400 });
     const end = Math.min(durationSeconds && durationSeconds > 0 ? durationSeconds : Infinity, t + 1.5);
     const start = Math.max(0, end - 6);
-    const result = await withModels("read", async (_model, meta) => {
+    const result = await withModels("youtube-read", async (_model, meta) => {
       const response = await generateContentRest(meta.id, meta.provider, {
         system: instructions,
         parts: [
-          { fileData: { fileUri: `https://www.youtube.com/watch?v=${id}` }, videoMetadata: { startOffset: seconds(start), endOffset: seconds(end), fps: 1 } },
+          { fileData: { fileUri: `https://www.youtube.com/watch?v=${id}`, mimeType: "video/mp4" }, videoMetadata: { startOffset: seconds(start), endOffset: seconds(end), fps: 1 } },
           { text: context ? `What the lecturer was saying around then:\n${String(context).slice(0, 3000)}` : "No speech context." },
         ],
         schema: geminiJsonSchema(boardReadSchema),

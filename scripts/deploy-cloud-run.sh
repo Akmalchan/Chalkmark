@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploy Chalkmark to Cloud Run with Vertex AI (Gemini), Firestore and Cloud Storage.
 # Usage: PROJECT=my-hackathon-project ./scripts/deploy-cloud-run.sh
-# Optional: GEMINI_API_KEY=... also enables Gemma 4 board titles (Gemma is served by the Gemini API, not Vertex).
+# Optional: a Secret Manager secret `gemini-api-key` (Gemini API key in this project) enables YouTube links and Gemma titles.
 set -euo pipefail
 
 PROJECT="${PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
@@ -32,11 +32,17 @@ done
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member "serviceAccount:$SA" --role roles/storage.objectAdmin >/dev/null
 
 ENV_VARS="GOOGLE_VERTEX_PROJECT=$PROJECT,GOOGLE_VERTEX_LOCATION=global,GOOGLE_CLOUD_PROJECT=$PROJECT,GCS_BUCKET=$BUCKET"
-if [[ -n "${GEMINI_API_KEY:-}" ]]; then ENV_VARS="$ENV_VARS,GOOGLE_GENERATIVE_AI_API_KEY=$GEMINI_API_KEY"; fi
+
+# YouTube links and Gemma go through the Gemini API (Vertex rejects YouTube URLs). Its key lives in Secret
+# Manager as `gemini-api-key` (create one in this project so it bills to the same account).
+SECRETS=()
+if gcloud secrets describe gemini-api-key --project "$PROJECT" >/dev/null 2>&1; then
+  SECRETS=(--set-secrets "GOOGLE_GENERATIVE_AI_API_KEY=gemini-api-key:latest")
+fi
 
 gcloud run deploy "$SERVICE" --source . --project "$PROJECT" --region "$REGION" \
   --service-account "$SA" --allow-unauthenticated \
   --memory 1Gi --cpu 1 --timeout 300 --concurrency 40 \
-  --set-env-vars "$ENV_VARS"
+  --set-env-vars "$ENV_VARS" "${SECRETS[@]}"
 
 gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)'
