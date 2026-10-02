@@ -102,11 +102,29 @@ export function NotesPaper({ doc, urls }: Props) {
   );
 }
 
-function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Record<string, string>; approx: string; youtube: string | null }) {
-  const uncertain = block.legibility !== "clear";
+function Block(props: { block: NoteBlock; urls: Record<string, string>; approx: string; youtube: string | null }) {
+  const { block, urls } = props;
+  const isFigure = block.kind === "graph" || block.kind === "diagram" || block.kind === "drawing";
+  // Writing that was not read cleanly is labeled as such, with the original ink right beside the reading.
+  if (!isFigure && block.legibility !== "clear") {
+    const original = block.figure ? urls[block.figure] : undefined;
+    return (
+      <div className="paper-uncertain">
+        <span className="paper-uncertain-label">{block.legibility === "unclear" ? "Unclear on the board" : "Partly legible"} · check the original</span>
+        <div className="paper-uncertain-body">
+          <div className="paper-uncertain-reading"><BlockContent {...props} /></div>
+          {original && <img src={original} alt={`Original writing: ${block.content}`} />}
+        </div>
+      </div>
+    );
+  }
+  return <BlockContent {...props} />;
+}
+
+function BlockContent({ block, urls, approx, youtube }: { block: NoteBlock; urls: Record<string, string>; approx: string; youtube: string | null }) {
   if (block.kind === "heading") return <h3 className="paper-heading"><MathText text={block.content} /></h3>;
   if (block.kind === "equation") {
-    return <div className={`paper-equation ${uncertain ? "uncertain" : ""}`}><Equation latex={block.content} meaning={block.detail || undefined} /></div>;
+    return <div className="paper-equation"><Equation latex={block.content} meaning={block.detail || undefined} /></div>;
   }
   if (block.kind === "table" && block.table) {
     return (
@@ -122,7 +140,7 @@ function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Recor
   if (block.redraw && (block.kind === "graph" || block.kind === "diagram" || block.kind === "drawing")) {
     return <RedrawnFigure block={block} original={block.figure ? urls[block.figure] : undefined} approx={approx} youtube={youtube} />;
   }
-  if (block.figure && urls[block.figure]) {
+  if (block.figure && urls[block.figure] && (block.kind === "graph" || block.kind === "diagram" || block.kind === "drawing")) {
     return (
       <figure className={`paper-figure kind-${block.kind}`}>
         <div className="paper-figure-art">
@@ -132,8 +150,7 @@ function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Recor
         <figcaption>
           <span className="paper-figure-kind">{KIND_LABEL[block.kind] ?? "From the board"}{block.writtenAt !== null && ` · ${approx}${formatClock(block.writtenAt)}`}</span>
           <strong><MathText text={block.content} /></strong>
-          {block.detail && block.kind !== "text" && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
-          {block.kind === "text" && <span className="paper-figure-detail">Handwriting was hard to read, so the original ink is shown.</span>}
+          {block.detail && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
         </figcaption>
       </figure>
     );
@@ -151,7 +168,7 @@ function Block({ block, urls, approx, youtube }: { block: NoteBlock; urls: Recor
       </figure>
     );
   }
-  return <div className={`paper-text ${uncertain ? "uncertain" : ""}`}><MarkdownLite text={block.content} /></div>;
+  return <div className="paper-text"><MarkdownLite text={block.content} /></div>;
 }
 
 function RedrawnFigure({ block, original, approx, youtube }: { block: NoteBlock; original?: string; approx: string; youtube: string | null }) {

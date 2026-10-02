@@ -3,7 +3,8 @@ import { Fragment, type ReactNode } from "react";
 
 const MATH_SEGMENT = /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\([\s\S]+?\\\)|\\\[[\s\S]+?\\\])/g;
 
-export function cleanLatex(value: string): string {
+/** Strip code fences, "latex:" prefixes and $ / \[ \( wrappers. Does not touch backslashes. */
+function unwrapLatex(value: string): string {
   let cleaned = value.trim()
     .replace(/^```(?:latex|tex|math)?\s*/i, "")
     .replace(/\s*```$/, "")
@@ -16,15 +17,29 @@ export function cleanLatex(value: string): string {
       break;
     }
   }
-  return cleaned.replace(/\\\\(?=[A-Za-z])/g, "\\");
+  return cleaned;
+}
+
+/**
+ * Variants to try, most faithful first. Collapsing "\\frac" → "\frac" repairs JSON double-escaping,
+ * but it would break a row break followed by a command ("\\\begin"), so it is only a fallback.
+ */
+function latexVariants(value: string): string[] {
+  const base = unwrapLatex(value);
+  return [...new Set([base, base.replace(/\\\\(?=[A-Za-z])/g, "\\")])];
+}
+
+export function cleanLatex(value: string): string {
+  return latexVariants(value).at(-1)!;
 }
 
 export function mathHtml(value: string, displayMode: boolean): string | null {
-  try {
-    return katex.renderToString(cleanLatex(value), { throwOnError: true, displayMode, strict: false, output: "htmlAndMathml" });
-  } catch {
-    return null;
+  const options = { displayMode, strict: false as const, output: "htmlAndMathml" as const };
+  for (const variant of latexVariants(value)) {
+    try { return katex.renderToString(variant, { ...options, throwOnError: true }); } catch { /* try the next variant */ }
   }
+  // Still render it (KaTeX marks only the broken command in red) instead of dumping raw LaTeX.
+  try { return katex.renderToString(latexVariants(value)[0], { ...options, throwOnError: false }); } catch { return null; }
 }
 
 /** Inline text with $...$ math and **bold**. */

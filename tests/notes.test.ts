@@ -103,3 +103,18 @@ test("Gemini cannot delete real content by calling it a duplicate", async () => 
   assert.ok(!confirmed.has("g3"), "a different figure is kept");
   assert.ok(!confirmed.has("e1"), "a unique equation is kept");
 });
+
+test("empty axes are recognised as scaffolding, real graphs are not", async () => {
+  const { isEmptyFigure } = await import("../lib/notes/dedupe");
+  const { isEmptyPlot } = await import("../lib/client/redraw");
+  assert.ok(isEmptyFigure("Graph 2 An empty XY coordinate system with origin O, vertical axis labeled y"));
+  assert.ok(isEmptyFigure("Coordinate axes with nothing plotted yet"));
+  assert.ok(!isEmptyFigure("Row picture: two lines x-2y=-1 and 2x+y=3 intersect at (1,1)"));
+  const plot = (extra: Partial<NonNullable<import("../lib/notes/figure").FigureSpec["plot"]>>) => ({
+    kind: "plot" as const, sketch: null, confidence: "high" as const, notes: null,
+    plot: { xMin: -2, xMax: 2, yMin: -2, yMax: 2, xLabel: "x", yLabel: "y", grid: false, curves: [], arrows: [], segments: [], points: [], labels: [], ...extra },
+  });
+  assert.ok(isEmptyPlot(plot({ points: [{ at: { x: 0, y: 0 }, label: "O", color: "ink" }] })));
+  assert.ok(!isEmptyPlot(plot({ curves: [{ label: "y = x", expression: "x", points: [], color: "ink", dashed: false }] })));
+  assert.ok(!isEmptyPlot(plot({ points: [{ at: { x: 1, y: 1 }, label: "(1,1)", color: "ink" }] })));
+});

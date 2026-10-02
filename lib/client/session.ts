@@ -5,7 +5,7 @@ import type { Quad, RGBAImage } from "../board/geometry";
 import { renderPaper } from "../board/paper";
 import { freshness, fromGeminiBox, tightenToInk, writtenSpan, type Box } from "../board/blocks";
 import { assembleSections, transcriptText } from "../notes/assemble";
-import { dedupeBlocks } from "../notes/dedupe";
+import { dedupeBlocks, isEmptyFigure } from "../notes/dedupe";
 import { redrawFigures } from "./redraw";
 import { FIGURE_KINDS, type BoardPage, type BoardRead, type Composition, type NoteBlock, type NotesDoc, type TranscriptSegment } from "../notes/schema";
 import { cropImage, imageToBlob } from "./media";
@@ -237,8 +237,11 @@ export class LectureSession {
     const isFirst = this.boards[0] === state;
     let index = 0;
     for (const block of blocks) {
+      // Empty axes/frames are scaffolding the lecturer fills in later, not content.
+      if (FIGURE_KINDS.includes(block.kind) && isEmptyFigure(`${block.content} ${block.detail}`)) { state.skipped += 1; continue; }
       const proposed = fromGeminiBox(block.box_2d);
-      const box: Box | null = proposed ? tightenToInk(paper, proposed) : null;
+      // Model boxes are often a little tight: widen before snapping to the real ink, so figures are not cut off.
+      const box: Box | null = proposed ? tightenToInk(paper, expandBox(proposed, 0.035)) : null;
       if (box && !isFirst) {
         const fresh = freshness(snapshot, box);
         if (fresh !== null && fresh < MIN_FRESHNESS) { state.skipped += 1; continue; }
@@ -246,7 +249,8 @@ export class LectureSession {
       const span = box ? writtenSpan(snapshot, box) : null;
       index += 1;
       const id = `${snapshot.id}-${String(index).padStart(2, "0")}`;
-      const needsFigure = FIGURE_KINDS.includes(block.kind) || block.legibility === "unclear";
+      // Figures, and anything not read cleanly, keep a crop of the original ink so students can check it.
+      const needsFigure = FIGURE_KINDS.includes(block.kind) || block.legibility !== "clear";
       let figure: string | null = null;
       if (needsFigure && box) {
         figure = `${id}.png`;
@@ -362,4 +366,9 @@ function downscale(image: RGBAImage, scale: number): RGBAImage {
     }
   }
   return { width, height, data };
+}
+
+
+function expandBox(box: Box, by: number): Box {
+  return [Math.max(0, box[0] - by), Math.max(0, box[1] - by), Math.min(1, box[2] + by), Math.min(1, box[3] + by)];
 }

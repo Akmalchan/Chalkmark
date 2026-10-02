@@ -28,3 +28,7 @@ export function dedupeBlocks(blocks: NoteBlock[]): { kept: NoteBlock[]; dropped:
   }
   return { kept: blocks.filter(block => !drop.has(block.id)), dropped: drop.size };
 }
+
+const EMPTY_FIGURE = /\b(empty|blank)\b[^.]{0,40}\b(coordinate|axes|axis|cartesian|graph|plane|grid|frame)|\b(no|nothing)\b[^.]{0,20}\b(plotted|drawn|curves?|data)\b|\bonly (the )?axes\b/i;
+/** A described figure that is just empty axes or a blank frame (scaffolding, not content). */
+export const isEmptyFigure = (text: string) => EMPTY_FIGURE.test(text);
