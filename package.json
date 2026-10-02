@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/**/*.test.ts",
     "predev": "node scripts/copy-mediapipe.mjs",
-    "prebuild": "node scripts/copy-mediapipe.mjs"
+    "prebuild": "node scripts/copy-mediapipe.mjs",
+    "eval": "node --import tsx scripts/eval-notes.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.87",

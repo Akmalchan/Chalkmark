@@ -135,3 +135,40 @@ test("blurry partial copies of clean writing are dropped, unique partial reads a
   ]);
   assert.deepEqual(kept.map(b => b.id).sort(), ["clean", "unique"]);
 });
+
+test("the answer-key scorer recognises real Gemini LaTeX and checks figure mathematics", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { scoreNotes } = await import("../lib/eval/score");
+  const key = JSON.parse(readFileSync("evals/linalg-geometry.json", "utf8"));
+  const eq = (id: string, content: string, kind: NoteBlock["kind"] = "equation"): NoteBlock => ({ ...block(id, 1), kind, content });
+  const plot = (extra: object) => ({ kind: "plot" as const, sketch: null, confidence: "high" as const, notes: null,
+    plot: { xMin: -2, xMax: 4, yMin: -3, yMax: 4, xLabel: "x", yLabel: "y", grid: false, curves: [], arrows: [], segments: [], points: [], labels: [], ...extra } });
+  const rowPicture = { ...eq("g1", "Row picture", "graph"), redraw: plot({
+    curves: [{ label: "2x+y=3", expression: "3 - 2*x", points: [], color: "ink", dashed: false }, { label: "x-2y=-1", expression: "(x + 1)/2", points: [], color: "ink", dashed: false }],
+    points: [{ at: { x: 1, y: 1 }, label: "(1,1)", color: "ink" }] }) };
+  const columnPicture = { ...eq("g2", "Column picture", "graph"), redraw: plot({
+    arrows: [{ from: { x: 0, y: 0 }, to: { x: 2, y: 1 }, label: "v₁", color: "ink", dashed: false }] }) };
+  const doc = {
+    version: 2, title: "t", course: "c", summary: "", createdAt: "", boards: [], transcript: [], warnings: [],
+    stats: {} as never,
+    sections: [{ title: "Row picture", start: null, end: null, explanation: [], takeaways: [], blocks: [
+      eq("a", "Solve $\\begin{cases} 2x+y=3 \\\\ x-2y=-1 \\end{cases}$", "text"),
+      eq("b", "x = 2y - 1 \\implies 2(2y-1)+y = 3"),
+      eq("c", "\\implies 5y-2=3 \\implies x=y=1"),
+      eq("d", "\\begin{bmatrix} 2 \\\\ 1 \\end{bmatrix} x + \\begin{bmatrix} 1 \\\\ -2 \\end{bmatrix} y = \\begin{bmatrix} 3 \\\\ -1 \\end{bmatrix}"),
+      eq("e", "A = \\begin{bmatrix} v_1 & v_2 \\end{bmatrix} = \\begin{bmatrix} 2 & 1 \\\\ 1 & -2 \\end{bmatrix}"),
+      eq("f", "ax = b, \\quad x = \\frac{b}{a} = a^{-1}b"),
+      eq("g", "A^{-1} A = \\begin{bmatrix} 1 & 0 \\\\ 0 & 1 \\end{bmatrix}"),
+      eq("h", "\\begin{bmatrix} x \\\\ y \\end{bmatrix} = A^{-1} \\begin{bmatrix} 3 \\\\ -1 \\end{bmatrix}"),
+      eq("z", "e^{i\\pi} + 1 = 0"),
+      rowPicture, columnPicture,
+    ] }],
+  } as unknown as import("../lib/notes/schema").NotesDoc;
+  const report = scoreNotes(doc, key);
+  const found = new Set(report.items.filter(item => item.found).map(item => item.id));
+  for (const id of ["problem", "subst-1", "subst-2", "subst-3", "solution", "col-equation", "matrix-A", "scalar-analogy", "inverse-identity", "solution-inverse"]) assert.ok(found.has(id), `should find ${id}`);
+  assert.ok(!found.has("matrix-system"), "the matrix-vector system was not in these notes");
+  assert.equal(report.figures.find(f => f.id === "row-picture")?.status, "pass");
+  assert.equal(report.figures.find(f => f.id === "column-picture")?.status, "partial");
+  assert.deepEqual(report.unmatched, ["[equation] e^{i\\pi} + 1 = 0"]);
+});
