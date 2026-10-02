@@ -41,8 +41,8 @@ cp .env.example .env.local   # add GOOGLE_GENERATIVE_AI_API_KEY
 npm run dev
 ```
 
-- `/studio`: live camera (an iPhone works through Continuity Camera; a "Simulated camera" plays the sample lecture)
-- `/studio?source=file`: scan a recording, or `/studio?sample=1` for the bundled sample lecture
+- `/studio?source=camera`: live camera (an iPhone works through Continuity Camera; a "Simulated camera" plays the sample lecture)
+- `/studio`: scan a recording, or `/studio?sample=1` for the bundled sample lecture
 - `/studio?source=youtube`: YouTube board moments (Gemini scans at low resolution for the last second before each erase, then re-reads only those seconds at high resolution)
 - `/l/<id>`: shared notes · `/quick`: older quick mode
 

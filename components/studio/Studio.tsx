@@ -23,6 +23,9 @@ type Phase = "setup" | "running" | "finishing" | "done";
 
 const LIVE_INTERVAL_MS = 330;
 
+const isFullFrame = (quad: Quad, size: { width: number; height: number }) =>
+  quad[0].x <= 1 && quad[0].y <= 1 && quad[2].x >= size.width - 1 && quad[2].y >= size.height - 1;
+
 type NumericKey = { [K in keyof EngineConfig]: EngineConfig[K] extends number ? K : never }[keyof EngineConfig];
 const TUNABLES: Array<{ key: NumericKey; label: string; min: number; max: number; step: number; hint: string }> = [
   { key: "inkThreshold", label: "Ink sensitivity threshold", min: 30, max: 120, step: 2, hint: "Lower catches faint marker; higher ignores glare and texture." },
@@ -37,6 +40,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
   const video = useRef<HTMLVideoElement>(null);
   const [videoSize, setVideoSize] = useState({ width: 0, height: 0 });
   const [quad, setQuad] = useState<Quad | null>(null);
+  /** The board-corner box is optional: the whole frame is used unless the user chooses to adjust it. */
+  const [adjusting, setAdjusting] = useState(false);
   const [error, setError] = useState("");
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([]);
   const [cameraId, setCameraId] = useState<string>("");
@@ -66,7 +71,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
   const adoptVideoSize = useCallback(() => {
     const element = video.current!;
     setVideoSize({ width: element.videoWidth, height: element.videoHeight });
-    setQuad(current => current ?? insetQuad(element.videoWidth, element.videoHeight, 0.06));
+    setQuad(current => current ?? fullFrameQuad(element.videoWidth, element.videoHeight));
   }, []);
 
   /* ---------- sources ---------- */
@@ -260,8 +265,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
         <Link className="wordmark" href="/"><span>CM</span> CHALKMARK</Link>
         {phase === "setup" ? (
           <div className="source-switch" role="tablist">
-            <button className={source === "camera" ? "active" : ""} onClick={() => setSource("camera")}>Live camera</button>
             <button className={source === "file" ? "active" : ""} onClick={() => { stream.current?.getTracks().forEach(track => track.stop()); setSource("file"); setVideoSize({ width: 0, height: 0 }); }}>Recorded video</button>
+            <button className={source === "camera" ? "active" : ""} onClick={() => setSource("camera")}>Live camera</button>
             <button className={source === "youtube" ? "active" : ""} onClick={() => { stream.current?.getTracks().forEach(track => track.stop()); setSource("youtube"); setVideoSize({ width: 0, height: 0 }); }}>YouTube link</button>
           </div>
         ) : (
@@ -287,7 +292,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
         <section className="panel camera-panel">
           <div className="video-frame">
             <video ref={video} playsInline muted onLoadedMetadata={() => { if (source === "camera") adoptVideoSize(); }} />
-            {phase === "setup" && ready && <CornerPicker width={videoSize.width} height={videoSize.height} quad={quad!} onChange={setQuad} />}
+            {phase === "setup" && ready && adjusting && <CornerPicker width={videoSize.width} height={videoSize.height} quad={quad!} onChange={setQuad} />}
             {phase !== "setup" && quad && <EngineOverlay engine={session?.engine ?? null} quad={quad} width={videoSize.width} height={videoSize.height} tick={tick} />}
             {source === "youtube" && (
               <div className="youtube-preview">
@@ -306,7 +311,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
               </label>
             )}
           </div>
-          <div className="panel-label">{source === "youtube" ? "YouTube · board moments are found by Gemini" : phase === "setup" ? "Drag the corners onto the board" : "Camera · red = ignored (lecturer or motion)"}</div>
+          <div className="panel-label">{source === "youtube" ? "YouTube · board moments are found by Gemini" : phase === "setup" ? (adjusting ? "Drag the corners onto the board's edges" : source === "camera" ? "Camera preview" : "Preview") : "Camera · red = ignored (lecturer or motion)"}</div>
         </section>
 
         {phase === "setup" ? (
@@ -329,8 +334,12 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
             <h1>{source === "camera" ? "Point a camera at the board" : "Scan a recorded lecture"}</h1>
             <ol className="setup-steps">
               <li>
-                <b>Frame the board.</b> Drag the four corners onto the board&apos;s edges. Chalkmark flattens it and ignores everything outside.
-                {ready && <div className="inline-actions"><button onClick={() => setQuad(fullFrameQuad(videoSize.width, videoSize.height))}>Use whole frame</button><button onClick={() => setQuad(insetQuad(videoSize.width, videoSize.height, 0.06))}>Reset</button></div>}
+                {adjusting
+                  ? <><b>Board area.</b> Drag the four corners onto the board&apos;s edges; everything outside is ignored.</>
+                  : <><b>Board area.</b> The whole frame is used — nothing to set up.</>}
+                {ready && (adjusting
+                  ? <div className="inline-actions"><button onClick={() => setAdjusting(false)}>Done</button><button onClick={() => { setQuad(fullFrameQuad(videoSize.width, videoSize.height)); setAdjusting(false); }}>Use whole frame</button></div>
+                  : <div className="inline-actions"><button onClick={() => { setQuad(current => current && !isFullFrame(current, videoSize) ? current : insetQuad(videoSize.width, videoSize.height, 0.06)); setAdjusting(true); }}>Adjust board area (optional)</button></div>)}
               </li>
               <li><b>Keep the camera still.</b> A phone on a desk or tripod is perfect. Walk, write and erase freely.</li>
               <li><b>Teach.</b> Every board state is saved right before it gets erased, and read by Gemini while you keep going.</li>

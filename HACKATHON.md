@@ -24,7 +24,7 @@ Tracks to enter: **GDG "Build with AI for Social Good"** and **SFSU "Build for S
 | Engine tuning sliders (setup → Advanced) | ✅ |
 | Real phone footage | ⚠️ **untested** — the #1 thing to do first tomorrow |
 
-Pages: `/` landing · `/studio` live camera · `/studio?source=file` recording · `/studio?sample=1` bundled sample · `/studio?camera=simulated` simulated live camera · `/studio?source=youtube` YouTube board moments · `/quick` old quick mode · `/lab` sample-video generator (dev only).
+Pages: `/` landing · `/studio` recording (default) · `/studio?source=camera` live camera · `/studio?sample=1` bundled sample · `/studio?camera=simulated` simulated live camera · `/studio?source=youtube` YouTube board moments · `/quick` old quick mode · `/lab` sample-video generator (dev only).
 
 **Free-tier warning:** overnight the AI Studio key hit its daily quota on `gemini-3.8-flash` (429) and the other Flash models were overloaded (503). The app falls back model-by-model and cools down busy models, but it is slow and flaky. Tomorrow run on **Vertex with the credits** — that is also a track requirement.
 

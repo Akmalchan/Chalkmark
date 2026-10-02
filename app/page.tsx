@@ -14,8 +14,8 @@ export default function Home() {
           <h1>The board forgets.<br /><em>Your notes don’t.</em></h1>
           <p>Point any camera at the board. Chalkmark looks straight through the lecturer, saves every board the moment before it’s erased, and Gemini turns the ink — equations, graphs, even a sketch of a car — into clean, typeset notes.</p>
           <div className="hero-actions">
-            <Link className="cta primary" href="/studio">Start live capture</Link>
-            <Link className="cta" href="/studio?source=file">Scan a recording</Link>
+            <Link className="cta primary" href="/studio">Scan a recording</Link>
+            <Link className="cta" href="/studio?source=camera">Start live capture</Link>
             <Link className="cta subtle" href="/studio?sample=1">Try the sample lecture →</Link>
           </div>
           <div className="privacy-proof">

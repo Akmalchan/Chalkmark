@@ -306,7 +306,7 @@ export default function Home() {
         <div className="hero-copy">
           <div className="hero-kicker">Quick mode for YouTube links</div>
           <h1>Quick notes<br/><em>from a link.</em></h1>
-          <p>Paste a public lecture and Gemini watches it directly. For the full board-memory pipeline (lecturer removed, every board saved before it is erased, read at full resolution) use <a href="/studio?source=file">a recording</a> or <a href="/studio">a live camera</a>.</p>
+          <p>Paste a public lecture and Gemini watches it directly. For the full board-memory pipeline (lecturer removed, every board saved before it is erased, read at full resolution) use <a href="/studio?source=file">a recording</a> or <a href="/studio?source=camera">a live camera</a>.</p>
           <div className="privacy-proof"><Icon name="memory" /><div><strong>Quick mode sends the video to Gemini</strong><span>The board-memory studio never uploads video.</span></div></div>
         </div>
 
