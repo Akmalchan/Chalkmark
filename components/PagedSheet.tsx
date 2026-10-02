@@ -39,10 +39,11 @@ function uniqueIds(html: string, suffix: string): string {
 }
 type Layout = { header: Piece; pages: Array<{ columns: [string[], string[]] }>; takeaways: Piece | null; scale: number };
 
-export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: Sheet; urls: Record<string, string>; paper: "Letter" | "A4" }) {
+/** `columns: 1` gives one wide column (easier to follow for dense, graduate-level material). */
+export function PagedSheet({ doc, sheet, urls, paper, columns = 2 }: { doc: NotesDoc; sheet: Sheet; urls: Record<string, string>; paper: "Letter" | "A4"; columns?: 1 | 2 }) {
   const size = PAGE[paper];
   const contentW = size.w - 2 * MARGIN_X;
-  const columnW = (contentW - GAP) / 2;
+  const columnW = columns === 1 ? contentW : (contentW - GAP) / 2;
   const bodyH = size.h - 2 * MARGIN_Y - FOOTER;
 
   const measure = useRef<HTMLDivElement>(null);
@@ -86,7 +87,7 @@ export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: 
       const next = parts[i + 1];
       const need = part.heading && next && next.section === part.section ? part.height + next.height : part.height;
       while (pages[page].columns[column].length && used(page, column) + need > room(page)) {
-        if (column === 0) column = 1; else { pages.push({ columns: [[], []] }); page += 1; column = 0; }
+        if (column === 0 && columns === 2) column = 1; else { pages.push({ columns: [[], []] }); page += 1; column = 0; }
       }
       pages[page].columns[column].push(part);
     });
@@ -109,7 +110,7 @@ export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: 
     const lastUsed = Math.max(used(last, 0), used(last, 1)) + (takeaways && takeawaysPage === last ? takeaways.height : 0);
     if (pages.length > 1 && lastUsed < room(last) * 0.45 && scale - STEP >= MIN_SCALE) { setScale(s => Math.round((s - STEP) * 100) / 100); return; }
     setLayout({ header, takeaways, scale, pages: pages.map(p => ({ columns: [columnHtml(p.columns[0]), columnHtml(p.columns[1])] })) });
-  }, [doc, sheet, urls, paper, scale, loaded, bodyH]);
+  }, [doc, sheet, urls, paper, scale, loaded, bodyH, columns]);
 
   // Figures that load late change heights: measure again when they do.
   useEffect(() => {
@@ -141,7 +142,7 @@ export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: 
         <div className="paged-page-slot" key={index} style={{ width: size.w * zoom, height: size.h * zoom }}>
           <section className="paged-page sheet" style={{ zoom }} aria-label={`Page ${index + 1} of ${layout.pages.length}`}>
             {index === 0 && <div className="paged-header" dangerouslySetInnerHTML={{ __html: uniqueIds(layout.header.html, `-p${index}h`) }} />}
-            <div className="paged-columns">
+            <div className={`paged-columns${columns === 1 ? " single" : ""}`}>
               {page.columns.map((column, c) => <div className="paged-column" key={c} dangerouslySetInnerHTML={{ __html: uniqueIds(column.join(""), `-p${index}c${c}`) }} />)}
             </div>
             {layout.takeaways && index === layout.pages.length - 1 && <div className="paged-takeaways" dangerouslySetInnerHTML={{ __html: uniqueIds(layout.takeaways.html, `-p${index}t`) }} />}

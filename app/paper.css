@@ -239,6 +239,8 @@ html:has(.print-root), body:has(.print-root) { background: #fff !important; }
 .paged-header .sheet-header { margin-bottom: 10px; }
 .paged-columns { position: relative; display: grid; grid-template-columns: var(--column-w) var(--column-w); column-gap: var(--column-gap); align-items: start; }
 .paged-columns::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px solid #ece8de; }
+.paged-columns.single { grid-template-columns: var(--column-w); }
+.paged-columns.single::before { display: none; }
 .paged-column { min-width: 0; }
 .paged-takeaways .sheet-takeaways { margin-top: 4px; }
 .paged-footer { margin-top: auto; padding-top: 6px; display: flex; justify-content: space-between; align-items: flex-end; font-family: var(--font-sans), sans-serif; font-size: 9px; color: #8a948f; }

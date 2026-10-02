@@ -42,7 +42,7 @@ export function PrintDocument() {
   return (
     <main className={`print-root print-${view} paper-${paper.toLowerCase()}`}>
       {view === "sheet" && doc.sheet
-        ? <><style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: 0; }`}</style><PagedSheet doc={doc} sheet={doc.sheet} urls={urls} paper={paper} /></>
+        ? <><style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: 0; }`}</style><PagedSheet doc={doc} sheet={doc.sheet} urls={urls} paper={paper} columns={(doc as { sheetColumns?: 1 | 2 }).sheetColumns ?? 2} /></>
         : <NotesPaper doc={doc} urls={urls} />}
     </main>
   );
