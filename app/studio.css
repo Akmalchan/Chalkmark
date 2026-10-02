@@ -135,6 +135,8 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .subject-note { display: block; margin-top: 6px; font-size: 12px; font-style: normal; color: #5f6a64; }
 
 /* Real pages (PDF) */
+.sheet-rewrite { padding: 9px 14px; border: 1px solid #c9ccc0; border-radius: 10px; background: var(--white); color: var(--ink); font-size: 13px; font-weight: 650; cursor: pointer; }
+.sheet-rewrite:disabled { opacity: .6; cursor: progress; }
 .pdf-download { padding: 9px 16px; border: 0; border-radius: 10px; background: var(--ink); color: var(--acid); font-size: 13px; font-weight: 700; cursor: pointer; }
 .pdf-download:disabled { opacity: .6; cursor: progress; }
 .pdf-error { max-width: 8.5in; margin: 8px auto 0; color: #b3322d; font-size: 13px; }

@@ -37,6 +37,13 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
   }, []);
   const choosePaper = (size: PaperSize) => { setPaper(size); try { localStorage.setItem("chalkmark-paper", size); } catch { /* ignore */ } };
 
+  const [rewriting, setRewriting] = useState(false);
+  /** Rewrite the study sheet with the current rules, from the saved notes (no re-scan). */
+  const rewrite = async () => {
+    setRewriting(true);
+    setPdf(null);
+    try { await generate(); } finally { setRewriting(false); }
+  };
   const generate = async () => {
     setSheetError("");
     try {
@@ -127,6 +134,7 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
           <button className={mode === "screen" ? "active" : ""} onClick={() => setMode("screen")}>Screen</button>
           <button className={mode === "pages" ? "active" : ""} onClick={() => setMode("pages")}>Pages</button>
         </div>
+        {view === "sheet" && sheet && <button className="sheet-rewrite" disabled={rewriting} onClick={() => void rewrite()}>{rewriting ? "Rewriting…" : "Rewrite sheet"}</button>}
         <button className="pdf-download" disabled={pdfBusy || (view === "sheet" && !sheet)} onClick={() => void downloadPdf()}>
           {pdfBusy ? "Making PDF…" : `Download PDF · ${paper === "A4" ? "A4" : "US Letter"}`}
         </button>

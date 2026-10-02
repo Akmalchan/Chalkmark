@@ -186,6 +186,7 @@
 .sheet-takeaways { margin-top: 6px; padding: 6px 10px; border: 1.5px solid #1b2420; border-radius: 6px; break-inside: avoid; }
 .sheet-takeaways b { font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .sheet-takeaways ul { margin: 3px 0 0; padding-left: 16px; columns: 2; column-gap: 8mm; }
+.sheet-takeaways li { break-inside: avoid; }
 .sheet-footer { margin-top: 8px; font-family: var(--font-sans), sans-serif; font-size: 9px; color: #8a948f; text-align: center; }
 @media (max-width: 720px) { .sheet-columns, .sheet-takeaways ul { column-count: 1; columns: 1; } .sheet { padding: 18px 16px; } }
 
