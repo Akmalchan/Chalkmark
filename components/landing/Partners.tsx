@@ -7,11 +7,11 @@ import type { ReactNode } from "react";
 const PARTNERS: Array<{ name: string; sub: string; mark: ReactNode }> = [
   {
     name: "SF Hacks", sub: "2026",
-    mark: <span className="pm-mark pm-sfhacks">SF</span>,
+    mark: <span className="pm-mark pm-sfhacks">{"</>"}</span>,
   },
   {
     name: "San Francisco State", sub: "University",
-    mark: <span className="pm-mark pm-sfsu" />,
+    mark: <span className="pm-mark pm-sfsu">SFSU</span>,
   },
   {
     name: "Google Developer Groups", sub: "GDG",
@@ -43,10 +43,6 @@ const PARTNERS: Array<{ name: string; sub: string; mark: ReactNode }> = [
         <defs><linearGradient id="pm-gemini" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4285f4" /><stop offset="1" stopColor="#9b72cb" /></linearGradient></defs>
       </svg>
     ),
-  },
-  {
-    name: "Gemma 4", sub: "open weights",
-    mark: <span className="pm-mark pm-gemma">G4</span>,
   },
 ];
 

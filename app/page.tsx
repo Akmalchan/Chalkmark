@@ -98,7 +98,7 @@ export default function Home() {
             <p className="compare-note">Same lecture, same model family. Chalkmark reads its boards at high resolution because handwriting needs it, so the fair comparison is the video at high resolution: 13.5× fewer. Even against the default low-detail video it is 3.6× fewer, and that video still has the lecturer standing in front of the board. Audio (≈32 tokens/s) is the same either way and excluded.</p>
           </div>
           <div className="stack" aria-label="Built with">
-            {["Gemini · Vertex AI", "Gemma 4", "MediaPipe", "Cloud Run", "Firestore", "Cloud Storage", "WebCodecs", "KaTeX"].map(item => <span key={item}>{item}</span>)}
+            {["Gemini · Vertex AI", "MediaPipe", "Cloud Run", "Firestore", "Cloud Storage", "WebCodecs", "KaTeX"].map(item => <span key={item}>{item}</span>)}
           </div>
         </div>
       </section>
