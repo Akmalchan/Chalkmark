@@ -4,8 +4,7 @@ import { EngineDemo } from "@/components/landing/EngineDemo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 
 const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
-/** Shown in the footer once filled in. */
-const LINKEDIN_URL = "";
+const LINKEDIN_URL = "https://www.linkedin.com/in/ashovkatov";
 
 /**
  * Vision tokens for the MIT 18.06SC recitation (995 s), measured with Gemini countTokens:
@@ -105,9 +104,8 @@ export default function Home() {
           <span>Made with <b aria-label="love">♥</b> by Akmal at SF Hacks × GDG, with Gemini on Google Cloud.</span>
         </div>
         <nav className="footer-links" aria-label="Links">
-          <Link href="/studio?source=youtube">Only have a YouTube link? →</Link>
           <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
-          {LINKEDIN_URL && <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">LinkedIn</a>}
+          <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">LinkedIn</a>
         </nav>
       </footer>
     </main>
