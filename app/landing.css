@@ -317,3 +317,5 @@
 .pa-series.memory { stroke: #b9e45e; stroke-width: 1.6; }
 .pa-series.camera { stroke: #3ea2f2; stroke-width: 1; opacity: .9; }
 .pa-chart-legend text { font-size: 8px; fill: #c9d6ce; }
+.pa-blink { animation: pa-blink 1.6s ease-in-out infinite; }
+@keyframes pa-blink { 50% { opacity: .35; } }

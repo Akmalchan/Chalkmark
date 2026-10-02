@@ -326,57 +326,37 @@ function StepArt({ kind }: { kind: ArtKind }) {
   }
 }
 
-/** What the engine sees (camera + cell overlay) next to what it remembers (lecturer gone). */
+/** One frame through the engine's eyes: just the cell grid and each cell's state. */
 function TrustArt() {
-  const W = 160, H = 160, COLS = 16, ROWS = 16, cw = W / COLS, ch = H / ROWS;
-  // Lecturer silhouette, in panel coordinates.
-  const head = { x: 108, y: 34, r: 9 };
-  const body = "M90 160 L93 68 C 94 55, 100 50, 108 49 C 116 50, 122 55, 123 68 L126 160 Z";
-  const inPerson = (c: number, r: number) => {
-    const x0 = c * cw, x1 = x0 + cw, y0 = r * ch, y1 = y0 + ch;
-    const cx = Math.max(x0, Math.min(head.x, x1)), cy = Math.max(y0, Math.min(head.y, y1));
-    if (Math.hypot(cx - head.x, cy - head.y) < head.r) return true;
-    return x1 > 92 && x0 < 125 && y1 > 50;
-  };
-  const person = new Set<number>(), buffer = new Set<number>();
-  for (let r = 0; r < ROWS; r += 1) for (let c = 0; c < COLS; c += 1) if (inPerson(c, r)) person.add(r * COLS + c);
+  const COLS = 28, ROWS = 14, SIZE = 10, GAP = 2, X0 = 12, Y0 = 21;
+  const at = (c: number, r: number) => r * COLS + c;
+  const person = new Set<number>();
+  for (let r = 1; r <= 3; r += 1) for (let c = 19; c <= 21; c += 1) person.add(at(c, r));
+  for (let r = 4; r < ROWS; r += 1) for (let c = 18; c <= 22; c += 1) person.add(at(c, r));
+  const buffer = new Set<number>();
   for (const p of person) {
     const pc = p % COLS, pr = Math.floor(p / COLS);
     for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {
-      const c = pc + dc, r = pr + dr, n = r * COLS + c;
-      if (c >= 0 && r >= 0 && c < COLS && r < ROWS && !person.has(n)) buffer.add(n);
+      const c = pc + dc, r = pr + dr;
+      if (c >= 0 && r >= 0 && c < COLS && r < ROWS && !person.has(at(c, r))) buffer.add(at(c, r));
     }
   }
-  // Rows of cells that hold writing (two lines + the small note).
-  const ink = (c: number, r: number) => ((r === 2 || r === 3) && c >= 1 && c <= 13) || ((r === 7 || r === 8) && c >= 1 && c <= 12) || ((r === 12 || r === 13) && c >= 1 && c <= 9);
-  const writing = (
-    <g className="pa-chalk">
-      <text x="10" y="35">f(x) = x² + 3x</text>
-      <text x="10" y="85">f′(x) = 2x + 3</text>
-      <text x="10" y="133" className="small">slope of tangent</text>
-    </g>
-  );
+  // Trusted ink laid out like three lines of writing (words separated by gaps), on both sides of the lecturer.
+  const ink = new Set<number>();
+  const words: [number, number, number][] = [
+    [2, 1, 4], [7, 1, 3], [11, 1, 4], [24, 1, 3],
+    [2, 2, 3], [6, 2, 6], [24, 2, 2],
+    [2, 6, 5], [8, 6, 4], [24, 6, 3],
+    [2, 7, 2], [5, 7, 7],
+    [2, 10, 3], [6, 10, 5], [12, 10, 2], [24, 10, 2],
+  ];
+  for (const [c, r, n] of words) for (let k = 0; k < n; k += 1) if (!person.has(at(c + k, r)) && !buffer.has(at(c + k, r))) ink.add(at(c + k, r));
+  const moving = new Set<number>([at(13, 7), at(14, 7), at(15, 6)]);
+  const cls = (i: number) => person.has(i) ? "pa-red" : buffer.has(i) ? "pa-buffer" : moving.has(i) ? "pa-yellow pa-blink" : ink.has(i) ? "pa-lime" : "pa-cell";
   return svg(<>
-    <text x="16" y="18" className="pa-label">camera</text>
-    <text x="196" y="18" className="pa-label">memory</text>
-    <g transform="translate(16 26)">
-      <rect width={W} height={H} rx="3" className="pa-chalkboard" />
-      {writing}
-      <circle cx={head.x} cy={head.y} r={head.r} className="pa-silhouette" />
-      <path d={body} className="pa-silhouette" />
-      {Array.from({ length: COLS * ROWS }, (_, i) => {
-        const c = i % COLS, r = Math.floor(i / COLS);
-        const cls = person.has(i) ? "pa-ov-person" : buffer.has(i) ? "pa-ov-buffer" : ink(c, r) ? "pa-ov-ink" : null;
-        return cls && <rect key={i} x={c * cw + 0.5} y={r * ch + 0.5} width={cw - 1} height={ch - 1} rx="1" className={cls} />;
-      })}
-      <rect width={W} height={H} rx="3" className="pa-frame" />
-    </g>
-    <path d="M181 106 h9 m-5 -4 l5 4 -5 4" className="pa-arrow" />
-    <g transform="translate(196 26)">
-      <rect width={W - 12} height={H} rx="3" className="pa-chalkboard" />
-      {writing}
-      <rect width={W - 12} height={H} rx="3" className="pa-frame-memory" />
-    </g>
+    {Array.from({ length: COLS * ROWS }, (_, i) => (
+      <rect key={i} x={X0 + (i % COLS) * (SIZE + GAP)} y={Y0 + Math.floor(i / COLS) * (SIZE + GAP)} width={SIZE} height={SIZE} rx="2" className={cls(i)} />
+    ))}
   </>);
 }
 
