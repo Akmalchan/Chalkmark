@@ -37,6 +37,7 @@ const instructions = `You write a short printable study sheet from a lecture's n
 
 - Be ruthless: keep only what matters for understanding and exams. Stay within the length given with the notes.
 - Write like student notes: short bullets, arrows (→), abbreviations where natural, no full paragraphs, no "the lecturer explains".
+- Plain words a student would actually write ("b is the diagonal of the parallelogram"), never filler or corporate verbs: no "encapsulates", "leverages", "fundamentally", "crucial", "delve", "robust", "seamless", "represented via".
 - Formulas: only the key ones, in KaTeX LaTeX. Any math inside bullets, steps or takeaways goes between $…$ (e.g. "solved via $x = A^{-1}b$"), never bare.
 - Formulas come from the board: copy them from the BOARD FORMULAS list (verbatim LaTeX, numbers included), preferring the ones with concrete numbers over general forms. Each section shows the board's own concrete formula for its idea (e.g. the actual vector equation, the actual matrix $A$).
 - Every formula must be mathematically correct. If a board formula is clearly a misreading or slip (e.g. "D^2 = \\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}"), write the correct standard form instead and end its label with "(corrected)". Never print a formula you believe is wrong.
