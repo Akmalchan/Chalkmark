@@ -49,6 +49,9 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
   const [useAudio, setUseAudio] = useState(true);
   const [usePersonMask, setUsePersonMask] = useState(true);
   const [subject, setSubject] = useState<Subject>("auto");
+  // Recordings are decoded off-screen (WebCodecs), so the frame being analysed is painted here instead of the <video>.
+  const framePreview = useRef<HTMLCanvasElement>(null);
+  const [decoding, setDecoding] = useState(false);
   const [tuning, setTuning] = useState<Partial<EngineConfig>>({});
   const [maskActive, setMaskActive] = useState(false);
   const [title, setTitle] = useState("");
@@ -185,6 +188,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
    * minute, at the cost of missing short-lived boards and the lecturer's spoken explanations.
    */
   const startFile = useCallback(async (quick = false) => {
+    setDecoding(false);
     const element = video.current!;
     const duration = element.duration;
     const interval = quick ? Math.min(4, Math.max(2.5, duration / 360)) : Math.min(2, Math.max(0.5, duration / 1200));
@@ -212,6 +216,11 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
       const now = performance.now();
       if (now - lastPaint > 80 || t + interval > duration) {
         lastPaint = now;
+        const preview = framePreview.current;
+        if (preview) {
+          if (preview.width !== grabber.width) { preview.width = grabber.width; preview.height = grabber.height; }
+          preview.getContext("2d")?.drawImage(grabber.canvas, 0, 0);
+        }
         setScan(t / duration);
         setElapsed(t);
         setTick(value => value + 1);
@@ -220,6 +229,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     let stalled = 0;
     const decode = media ? await openFrameDecoder(media.blob, grabber.width, grabber.height).catch(() => null) : null;
     if (decode) {
+      setDecoding(true);
       let index = 0;
       for await (const wrapped of decode(times)) {
         if (!running.current) break;
@@ -322,6 +332,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
         <section className="panel camera-panel">
           <div className="video-frame">
             <video ref={video} playsInline muted onLoadedMetadata={() => { if (source === "camera") adoptVideoSize(); }} />
+            {decoding && phase !== "setup" && source === "file" && <canvas ref={framePreview} className="frame-preview" aria-hidden="true" />}
             {phase === "setup" && ready && adjusting && <CornerPicker width={videoSize.width} height={videoSize.height} quad={quad!} onChange={setQuad} />}
             {phase !== "setup" && quad && <EngineOverlay engine={session?.engine ?? null} quad={quad} width={videoSize.width} height={videoSize.height} tick={tick} />}
             {source === "youtube" && (

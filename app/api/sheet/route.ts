@@ -26,9 +26,9 @@ const requestSchema = z.object({
 /** A board line cut off mid-derivation ("⇒ 5y − 2 = 3 ⇒ x =") is not a formula worth printing. */
 const unfinished = (latex: string) => /(=|\\Rightarrow|\\implies|\\to|[+\-*\/,])\s*$/.test(latex.trim());
 
-const instructions = `You write a one-to-two-page study sheet from a lecture's notes, the way a top student condenses a lecture before an exam.
+const instructions = `You write a short printable study sheet from a lecture's notes, the way a top student condenses a lecture before an exam.
 
-- Be ruthless: keep only what matters for understanding and exams. Around 300-450 words in total.
+- Be ruthless: keep only what matters for understanding and exams. Stay within the length given with the notes.
 - Write like student notes: short bullets, arrows (→), abbreviations where natural, no full paragraphs, no "the lecturer explains".
 - Formulas: only the key ones, in KaTeX LaTeX. Any math inside bullets, steps or takeaways goes between $…$ (e.g. "solved via $x = A^{-1}b$"), never bare.
 - Formulas come from the board: copy them from the BOARD FORMULAS list (verbatim LaTeX, numbers included), preferring the ones with concrete numbers over general forms. Each section shows the board's own concrete formula for its idea (e.g. the actual vector equation, the actual matrix $A$).
@@ -55,7 +55,10 @@ export async function POST(request: Request) {
       : "The lecture works no explicit exercise. You may add at most two short practice examples (kind \"practice\").";
     // The board's own formulas, listed separately so the sheet copies them instead of writing generic ones.
     const boardFormulas = body.sections.flatMap(section => section.blocks.filter(block => block.kind === "equation" && !unfinished(block.content)).map(block => `- (${section.title}) ${block.content}`));
-    const prompt = [`Lecture: ${body.title} (${body.course})`, body.summary, exerciseRule, "NOTES:", notes,
+    // Longer lectures get a longer sheet (still ruthless): 1–2 pages normally, up to 3 for a big lecture.
+    const size = body.sections.length + Math.floor(body.sections.reduce((n, section) => n + section.blocks.length, 0) / 12);
+    const length = size <= 5 ? { words: "300-450", pages: "one to two pages", sections: 6 } : size <= 9 ? { words: "450-650", pages: "two pages", sections: 8 } : { words: "650-900", pages: "up to three pages", sections: 10 };
+    const prompt = [`Lecture: ${body.title} (${body.course})`, body.summary, `LENGTH: around ${length.words} words in total (${length.pages}), at most ${length.sections} sections.`, exerciseRule, "NOTES:", notes,
       boardFormulas.length ? `BOARD FORMULAS:\n${boardFormulas.join("\n")}` : "",
       body.transcript ? `SPEECH (for examples and emphasis):\n${body.transcript}` : ""].join("\n\n");
 
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
     // Keep the sheet short and its figure references real, whatever the model returned.
     const sheet = result.value.sheet;
     let figures = 0;
-    sheet.sections = sheet.sections.slice(0, 6).map(section => {
+    sheet.sections = sheet.sections.slice(0, length.sections).map(section => {
       const figureId = section.figureId && figureIds.has(section.figureId) && figures < 3 ? section.figureId : null;
       if (figureId) figures += 1;
       return { ...section, points: section.points.slice(0, 4), formulas: section.formulas.filter(formula => !unfinished(formula.latex)).slice(0, 3), figureId, example: section.example ? { ...section.example, steps: section.example.steps.slice(0, 4) } : null };

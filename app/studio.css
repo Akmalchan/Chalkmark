@@ -22,7 +22,8 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .phase-running .studio-stage, .phase-finishing .studio-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .video-frame, .memory-frame { position: relative; aspect-ratio: 16 / 9; background: #121a17; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 50px rgba(22,34,30,.16); }
-.video-frame video, .engine-overlay, .corner-picker { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.video-frame video, .frame-preview, .engine-overlay, .corner-picker { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.frame-preview { background: #000; }
 .corner-picker { touch-action: none; }
 .corner-handle { fill: rgba(216,255,101,.9); stroke: #16221e; stroke-width: 2; cursor: grab; }
 .corner-handle:active { cursor: grabbing; }
