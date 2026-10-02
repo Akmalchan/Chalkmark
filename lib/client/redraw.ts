@@ -31,8 +31,8 @@ export async function redrawFigures(
         form.append("kind", block.kind);
         form.append("caption", block.content);
         form.append("detail", block.detail);
-        const nearby = section.blocks.filter(other => other !== block && !FIGURE_KINDS.includes(other.kind)).map(other => other.content).join("\n");
-        form.append("context", [nearby, ...section.explanation].join("\n").slice(0, 3000));
+        // No surrounding board text: it tempts the model to draw things that are not in this figure.
+        // The image and the reading of this exact figure are the only evidence.
         const response = await fetch("/api/board/redraw", { method: "POST", body: form });
         const payload = await response.json() as { spec?: FigureSpec; usage?: Usage; model?: string; error?: string };
         if (!response.ok || !payload.spec) return false;

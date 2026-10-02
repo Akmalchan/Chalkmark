@@ -26,9 +26,25 @@ export function dedupeBlocks(blocks: NoteBlock[]): { kept: NoteBlock[]; dropped:
       if (better) { drop.add(a.block.id); break; }
     }
   }
+  // A partly-legible read whose readable pieces all appear, in order, in a clean block is a blurry
+  // copy of that block ([?] gaps act as wildcards).
+  const clear = textual.filter(t => t.key && t.block.legibility === "clear" && !drop.has(t.block.id));
+  for (const t of textual) {
+    if (!t.key || t.block.legibility === "clear" || drop.has(t.block.id) || !t.block.content.includes("[?]")) continue;
+    const pieces = t.block.content.split("[?]").map(normalize).filter(piece => piece.length >= 2);
+    if (!pieces.length) { drop.add(t.block.id); continue; }
+    // Blur also garbles letters, so require most (not all) of the readable text to match, in order.
+    const total = pieces.reduce((sum, piece) => sum + piece.length, 0);
+    const covered = clear.some(c => {
+      let at = 0, matched = 0;
+      for (const piece of pieces) { const found = c.key!.indexOf(piece, at); if (found >= 0) { matched += piece.length; at = found + piece.length; } }
+      return matched / total >= 0.7;
+    });
+    if (covered) drop.add(t.block.id);
+  }
   return { kept: blocks.filter(block => !drop.has(block.id)), dropped: drop.size };
 }
 
-const EMPTY_FIGURE = /\b(empty|blank)\b[^.]{0,40}\b(coordinate|axes|axis|cartesian|graph|plane|grid|frame)|\b(no|nothing)\b[^.]{0,20}\b(plotted|drawn|curves?|data)\b|\bonly (the )?axes\b/i;
+const EMPTY_FIGURE = /\b(empty|blank|incomplete|unfinished|bare)\b[^.]{0,40}\b(coordinate|axes|axis|cartesian|graph|plane|grid|frame)|\b(no|nothing)\b[^.]{0,20}\b(plotted|drawn|curves?|data)\b|\bonly (the )?axes\b/i;
 /** A described figure that is just empty axes or a blank frame (scaffolding, not content). */
 export const isEmptyFigure = (text: string) => EMPTY_FIGURE.test(text);

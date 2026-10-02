@@ -223,6 +223,13 @@ export class LectureSession {
       const result = await postForm<{ blocks: BoardRead["blocks"]; usage: Usage; model: string }>("/api/board/read", form);
       this.addUsage(result.usage, result.model);
       await this.acceptBlocks(state, snapshot, result.blocks);
+      // If most of a board could not be read, the photo itself is bad (blur, mid-zoom): keep only
+      // what was read cleanly; the clean version of the rest lives on another board.
+      const unclear = state.blocks.filter(block => block.legibility !== "clear");
+      if (state.blocks.length >= 3 && unclear.length / state.blocks.length >= 0.5) {
+        state.blocks = state.blocks.filter(block => block.legibility === "clear");
+        state.skipped += unclear.length;
+      }
       state.status = "done";
     } catch (error) {
       state.status = "error";

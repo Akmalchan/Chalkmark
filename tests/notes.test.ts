@@ -118,3 +118,20 @@ test("empty axes are recognised as scaffolding, real graphs are not", async () =
   assert.ok(!isEmptyPlot(plot({ curves: [{ label: "y = x", expression: "x", points: [], color: "ink", dashed: false }] })));
   assert.ok(!isEmptyPlot(plot({ points: [{ at: { x: 1, y: 1 }, label: "(1,1)", color: "ink" }] })));
 });
+
+test("incomplete axes count as scaffolding too", async () => {
+  const { isEmptyFigure } = await import("../lib/notes/dedupe");
+  assert.ok(isEmptyFigure("Column picture axes. An incomplete set of axes with a y-axis pointing upwards"));
+});
+
+test("blurry partial copies of clean writing are dropped, unique partial reads are kept", async () => {
+  const { dedupeBlocks } = await import("../lib/notes/dedupe");
+  const make = (id: string, content: string, legibility: NoteBlock["legibility"] = "clear") => ({ ...block(id, 1), content, legibility });
+  const { kept } = dedupeBlocks([
+    make("clean", 'its "row picture" and "column picture"'),
+    make("blurry", 'in "[?]" [?] and "column pi [?]"', "partial"),
+    make("blurry2", 'its "row picture" and "col [?] picture"', "partial"),
+    make("unique", "the pivot is [?] when a = 0", "partial"),
+  ]);
+  assert.deepEqual(kept.map(b => b.id).sort(), ["clean", "unique"]);
+});
