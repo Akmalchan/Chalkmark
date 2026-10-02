@@ -12,9 +12,11 @@ type Props = {
   urls: Record<string, string>;
   onRestart?: () => void;
   sharedUrl?: string;
+  /** Override what "Markdown" exports (e.g. the study sheet). */
+  markdown?: () => string;
 };
 
-export function NotesActions({ doc, files, urls, onRestart, sharedUrl }: Props) {
+export function NotesActions({ doc, files, urls, onRestart, sharedUrl, markdown: customMarkdown }: Props) {
   const [share, setShare] = useState<{ url: string; qr: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +30,7 @@ export function NotesActions({ doc, files, urls, onRestart, sharedUrl }: Props) 
   };
 
   const exportMarkdown = () => {
-    const markdown = notesToMarkdown(doc, name => urls[name]?.startsWith("blob:") ? `figures/${name}` : urls[name] ?? name);
+    const markdown = customMarkdown?.() ?? notesToMarkdown(doc, name => urls[name]?.startsWith("blob:") ? `figures/${name}` : urls[name] ?? name);
     download(new Blob([markdown], { type: "text/markdown" }), `${slugify(doc.title)}.md`);
   };
 

@@ -127,3 +127,6 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .file-drop:hover .file-button { box-shadow: 0 0 0 4px rgba(216,255,101,.25); }
 .file-drop button { border: 0; margin-top: 0; text-decoration: underline; }
 .board-card.status-skipped { opacity: .45; }
+.quick-button { margin-top: -4px; padding: 11px 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid #c9ccc3; border-radius: 12px; background: var(--white); color: var(--ink); font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.quick-button span { font-size: 11px; font-weight: 500; color: var(--muted); }
+.quick-button:disabled { opacity: .45; cursor: not-allowed; }

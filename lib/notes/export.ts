@@ -1,5 +1,6 @@
 import { formatClock } from "./assemble";
 import type { NotesDoc } from "./schema";
+import type { StudySheet } from "./sheet";
 
 /** Markdown with LaTeX math; figures reference the crop files saved alongside. */
 export function notesToMarkdown(doc: NotesDoc, figurePath = (name: string) => `figures/${name}`): string {
@@ -30,4 +31,16 @@ export function notesToMarkdown(doc: NotesDoc, figurePath = (name: string) => `f
 
 export function slugify(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lecture-notes";
+}
+
+export function sheetToMarkdown(doc: NotesDoc, sheet: StudySheet): string {
+  const lines: string[] = [`# ${sheet.title || doc.title}`, `_${sheet.subtitle || doc.course}_`, ""];
+  sheet.sections.forEach((section, index) => {
+    lines.push(`## ${index + 1}. ${section.heading}`, ...section.points.map(point => `- ${point}`));
+    for (const formula of section.formulas) lines.push("", "$$", formula.latex, "$$", ...(formula.label ? [`_${formula.label}_`] : []));
+    if (section.example) lines.push("", `**${section.example.kind === "lecture" ? "Example" : "Practice"}:** ${section.example.problem}`, ...section.example.steps.map((step, i) => `${i + 1}. ${step}`), `⇒ ${section.example.answer}`);
+    lines.push("");
+  });
+  if (sheet.takeaways.length) lines.push("**Before the exam**", ...sheet.takeaways.map(item => `- ${item}`));
+  return lines.join("\n");
 }

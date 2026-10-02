@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { graphPanelSchema } from "../lecture-schema";
 import type { FigureSpec } from "./figure";
+import type { StudySheet } from "./sheet";
 
 /* ---------- What Gemini returns when it reads one board snapshot ---------- */
 
@@ -123,4 +124,6 @@ export type NotesDoc = {
   /** "summary" when speech is summarised per board (YouTube mode) rather than transcribed. */
   transcriptKind?: "verbatim" | "summary";
   source?: { kind: "youtube"; videoId: string };
+  /** Condensed one-to-two-page study sheet (generated after the notes). */
+  sheet?: StudySheet;
 };

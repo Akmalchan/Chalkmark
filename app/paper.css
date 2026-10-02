@@ -99,7 +99,7 @@
 }
 
 /* Inline math flows with the text (the legacy .inline-math rule scrolls, which shows scrollbars on fractions). */
-.paper .inline-math, .board-card .inline-math { display: inline; overflow: visible; padding: 0; vertical-align: baseline; }
+.paper .inline-math, .board-card .inline-math, .sheet .inline-math { display: inline; overflow: visible; padding: 0; vertical-align: baseline; }
 
 /* Override the legacy dark equation card from globals.css. */
 .paper-equation .equation { color: #1b2420; text-align: center; overflow-x: auto; }
@@ -132,3 +132,71 @@
 .paper-uncertain-reading .equation { background: transparent; }
 .paper-uncertain img { width: 100%; max-height: 120px; object-fit: contain; mix-blend-mode: multiply; border-radius: 6px; background: var(--white); }
 @media (max-width: 640px) { .paper-uncertain-body { grid-template-columns: 1fr; } }
+
+/* ---------- Notes view controls ---------- */
+.view-bar { max-width: 900px; margin: 18px auto 0; padding: 0 12px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+.segmented { display: inline-flex; gap: 2px; padding: 3px; background: #dcd8cd; border-radius: 10px; }
+.segmented button { padding: 7px 12px; border: 0; border-radius: 8px; background: transparent; font-size: 12px; font-weight: 650; color: #5f6a64; cursor: pointer; }
+.segmented button.active { background: var(--white); color: var(--ink); box-shadow: 0 2px 6px rgba(22,34,30,.08); }
+.sheet-pending { max-width: 640px; margin: 40px auto; padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; background: var(--white); border: 1px solid var(--line); border-radius: 14px; font-size: 14px; color: #4a554f; }
+.sheet-pending p { margin: 0; }
+.sheet-pending button { padding: 8px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+
+/* ---------- Study sheet: one to two printed pages ---------- */
+.sheet-page { margin: 18px auto 0; padding: 0 12px; }
+.sheet-page.paper-letter .sheet { max-width: 8.5in; }
+.sheet-page.paper-a4 .sheet { max-width: 210mm; }
+.sheet {
+  margin: 0 auto;
+  padding: 12mm 13mm;
+  background: var(--white);
+  border: 1px solid #e6e1d4;
+  box-shadow: 0 30px 80px rgba(22, 34, 30, .09);
+  font-family: var(--font-serif), serif;
+  font-size: 13.5px;
+  line-height: 1.42;
+  color: #1b2420;
+}
+.sheet-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; padding-bottom: 6px; border-bottom: 2px solid #1b2420; }
+.sheet-header h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.sheet-header p { margin: 0; font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #6f7a74; }
+.sheet-columns { margin-top: 10px; column-count: 2; column-gap: 9mm; column-rule: 1px solid #ece8de; }
+.sheet-section { break-inside: avoid; margin: 0 0 10px; }
+.sheet-section h2 { margin: 0 0 3px; display: flex; gap: 6px; align-items: baseline; font-size: 14.5px; font-weight: 650; }
+.sheet-section h2 span { font-family: var(--font-mono), monospace; font-size: 10px; color: #a5462d; }
+.sheet-section ul, .sheet-section ol { margin: 2px 0 4px; padding-left: 16px; }
+.sheet-section li { margin: 1px 0; }
+.sheet-formula { margin: 3px 0; padding: 3px 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f7f4ec; border-radius: 6px; }
+.sheet-formula .katex-display { margin: 0; text-align: left; }
+.sheet-formula .katex { font-size: 1.02em; }
+.sheet-formula small { flex: none; max-width: 40%; font-family: var(--font-sans), sans-serif; font-size: 10px; color: #6f7a74; text-align: right; }
+.sheet-figure { margin: 4px 0 6px; }
+.sheet-figure .redraw-svg, .sheet-figure img { max-height: 46mm; width: 100%; object-fit: contain; }
+.sheet-figure figcaption { font-family: var(--font-sans), sans-serif; font-size: 10px; color: #6f7a74; text-align: center; }
+.sheet-example { margin: 4px 0; padding: 5px 8px; border-left: 3px solid #3c6e8f; background: #f2f6f9; font-size: 12.5px; }
+.sheet-example.practice { border-left-color: #b98a2e; background: #fbf6ea; }
+.sheet-example b { font-family: var(--font-mono), monospace; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: #3c6e8f; }
+.sheet-example.practice b { color: #8a6514; }
+.sheet-example ol { margin: 2px 0; }
+.sheet-answer { margin: 2px 0 0; font-weight: 600; }
+.sheet-takeaways { margin-top: 6px; padding: 6px 10px; border: 1.5px solid #1b2420; border-radius: 6px; break-inside: avoid; }
+.sheet-takeaways b { font-family: var(--font-mono), monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.sheet-takeaways ul { margin: 3px 0 0; padding-left: 16px; columns: 2; column-gap: 8mm; }
+.sheet-footer { margin-top: 8px; font-family: var(--font-sans), sans-serif; font-size: 9px; color: #8a948f; text-align: center; }
+@media (max-width: 720px) { .sheet-columns, .sheet-takeaways ul { column-count: 1; columns: 1; } .sheet { padding: 18px 16px; } }
+
+@media print {
+  .studio-done { background: #fff !important; padding: 0 !important; }
+  .sheet-page { margin: 0; padding: 0; }
+  .sheet { max-width: none !important; padding: 0; border: 0; box-shadow: none; font-size: 9.6pt; line-height: 1.32; }
+  .sheet-columns { column-count: 2 !important; }
+  .sheet-takeaways ul { columns: 2 !important; }
+  .sheet-formula, .sheet-example { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Full notes print compactly: no board photo appendix or transcript, smaller type. */
+  .paper-appendix { display: none !important; }
+  .paper { font-size: 10pt; }
+  .paper h1 { font-size: 22pt; }
+  .paper-section { padding-top: 14pt; }
+  .paper-explanation p, .paper-text { font-size: 10.5pt; line-height: 1.45; }
+  .paper-figure-art img, .paper-figure .redraw-svg { max-height: 60mm; }
+}

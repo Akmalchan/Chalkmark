@@ -15,8 +15,7 @@ import { MathText } from "@/components/math";
 import { SAMPLE_QUAD } from "@/lib/demo/synthetic-lecture";
 import { CornerPicker } from "./CornerPicker";
 import { BoardMemoryView, EngineOverlay, type MemoryMode } from "./LiveViews";
-import { NotesActions } from "./NotesActions";
-import { NotesPaper } from "@/components/NotesPaper";
+import { NotesView } from "@/components/NotesView";
 
 type Source = "camera" | "file" | "youtube";
 type Phase = "setup" | "running" | "finishing" | "done";
@@ -178,19 +177,23 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     await wakeLock?.release().catch(() => undefined);
   }, [quad, title, useAudio, cameraId, usePersonMask, tuning]);
 
-  const startFile = useCallback(async () => {
+  /**
+   * `quick`: about 3× fewer frames and no speech transcript (the slowest step) — notes in roughly a
+   * minute, at the cost of missing short-lived boards and the lecturer's spoken explanations.
+   */
+  const startFile = useCallback(async (quick = false) => {
     const element = video.current!;
     const duration = element.duration;
-    const interval = Math.min(2, Math.max(0.5, duration / 1200));
+    const interval = quick ? Math.min(4, Math.max(2.5, duration / 360)) : Math.min(2, Math.max(0.5, duration / 1200));
     const grabber = new FrameGrabber(element);
-    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name, dry);
+    const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: quick ? interval * 1.6 : Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name, dry);
     (window as unknown as { __session?: LectureSession }).__session = active;
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
     setSession(active);
     setPhase("running");
     running.current = true;
-    if (useAudio && media && !dry) {
+    if (useAudio && media && !dry && !quick) {
       // Audio is pulled out locally and transcribed while the board is being scanned.
       audioJob.current = extractAudioChunks(media.blob, duration, 300)
         .then(chunks => Promise.all(chunks.map(chunk => active.transcribe(chunk.blob, chunk.offset))))
@@ -243,16 +246,13 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
       setStage("");
     };
     return (
-      <main className="studio-done">
-        <NotesActions doc={doc} files={session?.files ?? new Map()} urls={urls} onRestart={() => window.location.reload()} />
-        {doc.composed === false && session && (
+      <NotesView key={doc.createdAt} doc={doc} files={session?.files ?? new Map()} urls={urls} onRestart={() => window.location.reload()}
+        banner={doc.composed === false && session ? (
           <div className="retry-banner no-print">
             <span>Gemini was busy when writing the section summaries.</span>
             <button className="primary" disabled={Boolean(stage)} onClick={retry}>{stage ? "Writing…" : "Retry writing notes"}</button>
           </div>
-        )}
-        <NotesPaper doc={doc} urls={urls} />
-      </main>
+        ) : null} />
     );
   }
 
@@ -376,6 +376,11 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
             <button className="start-button" disabled={!ready} onClick={() => (source === "camera" ? startLive() : startFile())}>
               {source === "camera" ? "Start capturing" : "Scan this lecture"}
             </button>
+            {source === "file" && (
+              <button className="quick-button" disabled={!ready} onClick={() => startFile(true)}>
+                Quick scan <span>about a minute · fewer frames, no speech</span>
+              </button>
+            )}
             <p className="setup-privacy">The video never leaves this device. Chalkmark sends Gemini only the cleaned board images it keeps{useAudio ? " and compressed speech" : ""}.</p>
           </aside>
           )

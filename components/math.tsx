@@ -44,6 +44,11 @@ export function mathHtml(value: string, displayMode: boolean): string | null {
 
 /** Inline text with $...$ math and **bold**. */
 export function MathText({ text }: { text: string }) {
+  // Models sometimes write LaTeX without $ delimiters ("\\frac{d}{dx} x^3 = 3x^2"): render that as math.
+  if (!text.includes("$") && /\\[a-zA-Z]{2,}/.test(text) && !/\s[a-z]{4,}\s[a-z]{4,}\s/i.test(text.replace(/\\[a-zA-Z]+(\{[^}]*\})*/g, ""))) {
+    const html = mathHtml(text, false);
+    if (html) return <span className="inline-math" dangerouslySetInnerHTML={{ __html: html }} />;
+  }
   const segments = text.split(MATH_SEGMENT).filter(Boolean);
   return <>{segments.map((segment, index) => {
     const isMath = /^(\$\$|\$|\\\(|\\\[)/.test(segment);

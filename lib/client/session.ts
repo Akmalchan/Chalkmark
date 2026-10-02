@@ -204,7 +204,7 @@ export class LectureSession {
   }
 
   private pumpReads() {
-    while (this.activeReads < 2 && this.readQueue.length) {
+    while (this.activeReads < 3 && this.readQueue.length) {
       const next = this.readQueue.shift()!;
       this.activeReads += 1;
       next().finally(() => { this.activeReads -= 1; this.pumpReads(); });
