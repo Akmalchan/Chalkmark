@@ -20,7 +20,8 @@ type Step = {
 const FIGURE_TOPICS = [
   "Linear systems", "Vectors", "Tangent lines", "Parabolas", "Sine & cosine", "Exponential growth", "Logarithms",
   "Limits", "Area under a curve", "Normal distribution", "Supply & demand", "Free-body diagrams", "Circuits",
-  "Flowcharts", "Trees & graphs", "Geometry", "Phase diagrams", "Cell diagrams", "Sketches (yes, a car)",
+  "Binary search trees", "Linked lists", "Stacks & queues", "Hash tables", "Weighted graphs", "Heaps",
+  "Flowcharts", "Geometry", "Phase diagrams", "Cell diagrams", "Sketches (yes, a car)",
 ];
 
 const ON_DEVICE: Step[] = [

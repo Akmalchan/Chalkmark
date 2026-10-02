@@ -10,8 +10,27 @@ const point = z.object({ x: z.number(), y: z.number() });
 export const FIGURE_COLORS = ["ink", "blue", "red", "green", "orange", "purple"] as const;
 const color = z.enum(FIGURE_COLORS);
 
+export const STRUCTURE_TYPES = ["array", "linked-list", "doubly-linked-list", "stack", "queue", "tree", "graph", "hash-table"] as const;
+
+/** A data structure, described as data; the renderer computes a clean layout (never hand coordinates). */
+export const structureSchema = z.object({
+  type: z.enum(STRUCTURE_TYPES),
+  /** array / stack / queue: cells in order (stack: bottom → top; queue: front → rear). */
+  cells: z.array(z.object({ label: z.string(), index: z.string(), highlight: z.boolean() })).max(40),
+  /** linked lists, trees, graphs. */
+  nodes: z.array(z.object({ id: z.string(), label: z.string(), highlight: z.boolean() })).max(40),
+  /** linked list: next pointers; tree: parent → child (side left/right for binary trees); graph: edges. */
+  edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string(), side: z.enum(["left", "right", "none"]) })).max(80),
+  directed: z.boolean(),
+  /** hash-table: one entry per bucket, items chained in order. */
+  buckets: z.array(z.object({ key: z.string(), items: z.array(z.string()) })).max(20),
+  /** Named pointers: head, tail, top, front, rear, root, cur, i… pointing at a node id or a cell index. */
+  pointers: z.array(z.object({ label: z.string(), to: z.string() })).max(10),
+});
+export type StructureSpec = z.infer<typeof structureSchema>;
+
 export const figureSpecSchema = z.object({
-  kind: z.enum(["plot", "sketch"]),
+  kind: z.enum(["plot", "sketch", "structure"]),
   plot: z.object({
     xMin: z.number(), xMax: z.number(), yMin: z.number(), yMax: z.number(),
     xLabel: z.string(), yLabel: z.string(),
@@ -38,6 +57,7 @@ export const figureSpecSchema = z.object({
       color, dashed: z.boolean(), fill: z.boolean(),
     })).max(80),
   }).nullable(),
+  structure: structureSchema.nullable().optional(),
   confidence: z.enum(["high", "medium", "low"]),
   notes: z.string().nullable(),
 });
@@ -46,7 +66,7 @@ export type FigureSpec = z.infer<typeof figureSpecSchema>;
 /** Plain-text description of the JSON shape for the prompt (the nested schema is validated locally). */
 export const FIGURE_SPEC_GUIDE = `Return JSON:
 {
-  "kind": "plot" | "sketch",
+  "kind": "plot" | "sketch" | "structure",
   "plot": null | {
     "xMin", "xMax", "yMin", "yMax": numbers (math coordinates; include every key feature with a little margin),
     "xLabel", "yLabel": axis names as written (e.g. "x", "t", "v(t)"), "" if none,
@@ -63,6 +83,15 @@ export const FIGURE_SPEC_GUIDE = `Return JSON:
                  "points": [{x,y}] (canvas coordinates, x 0-100 left→right, y 0-height top→bottom; circle/ellipse: [center]; rect: [top-left, bottom-right]; text: [anchor]),
                  "rx", "ry": radii for circle/ellipse else null, "text": label text or "",
                  "color", "dashed", "fill" }]
+  },
+  "structure": null | {
+    "type": "array" | "linked-list" | "doubly-linked-list" | "stack" | "queue" | "tree" | "graph" | "hash-table",
+    "cells": [{ "label", "index": "" or the index written under it, "highlight" }]   (array: left→right; stack: bottom→top; queue: front→rear),
+    "nodes": [{ "id": short unique id, "label": value shown in the node, "highlight" }]   (linked lists, trees, graphs),
+    "edges": [{ "from": id, "to": id, "label": weight or "", "side": "left"|"right"|"none" (binary-tree child side) }]   (list: next pointers in order; tree: parent→child; graph: edges),
+    "directed": true if edges have arrowheads (lists are always directed),
+    "buckets": [{ "key": bucket index, "items": ["values chained in this bucket", ...] }]   (hash-table),
+    "pointers": [{ "label": "head"|"tail"|"top"|"root"|"cur"|..., "to": node id or cell index }]
   },
   "confidence": "high" | "medium" | "low",
   "notes": what you could not determine, or null
@@ -93,11 +122,39 @@ const pt = (v: unknown) => {
 const pts = (v: unknown) => arr(v).map(pt).filter((p): p is { x: number; y: number } => p !== null);
 const SHAPES = ["line", "arrow", "polyline", "curve", "polygon", "circle", "ellipse", "rect", "text"] as const;
 
+function normalizeStructure(raw: Json): StructureSpec | null {
+  const typeName = str(raw.type).toLowerCase().replace(/[\s_]+/g, "-");
+  const alias: Record<string, (typeof STRUCTURE_TYPES)[number]> = { list: "linked-list", "singly-linked-list": "linked-list", "doubly-linked": "doubly-linked-list", "binary-tree": "tree", bst: "tree", heap: "tree", "binary-search-tree": "tree", hashtable: "hash-table", "hash-map": "hash-table", hashmap: "hash-table", dag: "graph" };
+  const type = (STRUCTURE_TYPES as readonly string[]).includes(typeName) ? (typeName as (typeof STRUCTURE_TYPES)[number]) : alias[typeName];
+  if (!type) return null;
+  const cells = arr(raw.cells ?? raw.items ?? raw.elements).map(v => typeof v === "object" ? { label: str(obj(v).label ?? obj(v).value), index: str(obj(v).index), highlight: bool(obj(v).highlight) } : { label: str(v), index: "", highlight: false }).filter(c => c.label !== "" || c.index !== "").slice(0, 40);
+  // A "null"/"NIL"/"∅" node is the end of a list or an empty child, which the renderer already draws.
+  const isNull = (label: string) => /^(null|nil|none|nullptr|∅|ø|\/|x)$/i.test(label.trim());
+  const nodes = arr(raw.nodes).map((v, i) => { const o = obj(v); const label = str(o.label ?? o.value ?? (typeof v !== "object" ? v : "")); return { id: str(o.id) || label || `n${i}`, label, highlight: bool(o.highlight) }; })
+    .filter(n => !(type !== "graph" && isNull(n.label))).slice(0, 40);
+  const ids = new Set(nodes.map(n => n.id));
+  const edges = arr(raw.edges).map(v => { const o = obj(v); const side = str(o.side).toLowerCase(); return { from: str(o.from ?? o.source), to: str(o.to ?? o.target), label: str(o.label ?? o.weight), side: (side === "left" || side === "right" ? side : "none") as "left" | "right" | "none" }; })
+    .filter(e => ids.has(e.from) && ids.has(e.to) && e.from !== e.to).slice(0, 80);
+  const buckets = arr(raw.buckets).map((v, i) => { const o = obj(v); return { key: str(o.key ?? o.index) || String(i), items: arr(o.items ?? o.values ?? o.chain).map(str).filter(Boolean) }; }).slice(0, 20);
+  const pointers = arr(raw.pointers).map(v => { const o = obj(v); return { label: str(o.label ?? o.name), to: str(o.to ?? o.target) }; }).filter(p => p.label && p.to).slice(0, 10);
+  const usable = type === "hash-table" ? buckets.length > 0 : ["array", "stack", "queue"].includes(type) ? cells.length > 0 : nodes.length > 0;
+  if (!usable) return null;
+  return { type, cells, nodes, edges, directed: type.includes("list") || bool(raw.directed), buckets, pointers };
+}
+
 export function normalizeFigureSpec(raw: unknown): FigureSpec | null {
   const root = obj(raw);
+  const structureRaw = root.structure && typeof root.structure === "object" ? obj(root.structure) : null;
+  if (str(root.kind) === "structure" || (structureRaw && !root.plot && !root.sketch)) {
+    const structure = structureRaw ? normalizeStructure(structureRaw) : null;
+    if (structure) {
+      const confidence = ["high", "medium", "low"].includes(str(root.confidence)) ? (str(root.confidence) as FigureSpec["confidence"]) : "medium";
+      return { kind: "structure", plot: null, sketch: null, structure, confidence, notes: str(root.notes).trim() || null };
+    }
+  }
   const plotRaw = root.plot && typeof root.plot === "object" ? obj(root.plot) : null;
   const sketchRaw = root.sketch && typeof root.sketch === "object" ? obj(root.sketch) : null;
-  let kind = str(root.kind) === "sketch" ? "sketch" : str(root.kind) === "plot" ? "plot" : plotRaw ? "plot" : "sketch";
+  let kind: "plot" | "sketch" = str(root.kind) === "sketch" ? "sketch" : str(root.kind) === "plot" ? "plot" : plotRaw ? "plot" : "sketch";
   if (kind === "plot" && !plotRaw && sketchRaw) kind = "sketch";
   if (kind === "sketch" && !sketchRaw && plotRaw) kind = "plot";
 

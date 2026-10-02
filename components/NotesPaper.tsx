@@ -126,6 +126,14 @@ function BlockContent({ block, urls, approx, youtube }: { block: NoteBlock; urls
   if (block.kind === "equation") {
     return <div className="paper-equation"><Equation latex={block.content} meaning={block.detail || undefined} /></div>;
   }
+  if (block.kind === "code") {
+    return (
+      <figure className="paper-code">
+        {block.detail && <figcaption>{block.detail}</figcaption>}
+        <pre><code>{block.content.replace(/^```\w*\n?|\n?```$/g, "")}</code></pre>
+      </figure>
+    );
+  }
   if (block.kind === "table" && block.table) {
     return (
       <figure className="paper-table">

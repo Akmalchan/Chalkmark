@@ -1,3 +1,4 @@
+import { asSubject, subjectHint } from "@/lib/notes/subject";
 import { generateText, Output } from "ai";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,6 +20,7 @@ const requestSchema = z.object({
     blocks: z.array(z.object({ id: z.string(), kind: z.string(), content: z.string(), detail: z.string() })),
   })).max(40),
   transcript: z.string().max(60_000),
+  subject: z.string().optional(),
 });
 
 /** A board line cut off mid-derivation ("⇒ 5y − 2 = 3 ⇒ x =") is not a formula worth printing. */
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
     const result = await withModels("compose", async (model, meta) => {
       const response = await generateText({
         model,
-        system: instructions,
+        system: instructions + subjectHint(asSubject(body.subject), "sheet"),
         prompt,
         output: Output.object({ schema: studySheetSchema }),
         providerOptions: providerOptions(meta.provider, { thinkingConfig: { thinkingLevel: "low" } }),

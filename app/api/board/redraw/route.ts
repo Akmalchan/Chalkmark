@@ -1,3 +1,4 @@
+import { asSubject, subjectHint } from "@/lib/notes/subject";
 import { generateText, Output } from "ai";
 import { NextResponse } from "next/server";
 import { describeFailure, ModelChainError, providerOptions, usageOf, withModels } from "@/lib/ai/models";
@@ -10,7 +11,9 @@ const instructions = `You redraw a figure from a lecture board as clean, exact v
 
 Faithfulness comes first: draw exactly the elements visible in the image of this figure — no more, no fewer (an empty pair of axes stays empty). The surrounding board text is for exact values only: when an element IS drawn and the board states its value (v₂ = (1, −2), a line labeled 2x + y = 3), use the stated value instead of estimating from the sketch, because hand-drawn coordinates are imprecise. Never add an element just because the text mentions it. If there is no image, draw exactly what the description says.
 
-Choose "plot" for anything with coordinate axes (functions, lines, vectors, row/column pictures, data) and "sketch" for everything else (diagrams, geometry without axes, circuits, a car, a cell).
+Choose "plot" for anything with coordinate axes (functions, lines, vectors, row/column pictures, data), "structure" for data structures (array, linked list, doubly linked list, stack, queue, tree/heap/BST, graph, hash table) and "sketch" for everything else (flowcharts, geometry without axes, circuits, a car, a cell).
+
+Structures are described, not drawn: list every node/cell/bucket with its exact value and every edge/pointer exactly as on the board (binary tree children with side left/right; graph weights as edge labels; head/tail/top/root/i/j as pointers). The app lays them out cleanly, so never give coordinates. Highlight only what the board highlights (circled, coloured, marked "new").
 
 Plots must be mathematically right, not just look right:
 - If a drawn line or curve is labeled with an equation (e.g. 2x + y = 3), draw it from its expression solved for y ("3 - 2*x") so it is exact. Vertical lines x = c become a segment.
@@ -33,6 +36,7 @@ export async function POST(request: Request) {
     const caption = String(form.get("caption") ?? "").slice(0, 400);
     const detail = String(form.get("detail") ?? "").slice(0, 2000);
     const context = String(form.get("context") ?? "").slice(0, 3000);
+    const subject = asSubject(form.get("subject"));
     const content: Array<{ type: "text"; text: string } | { type: "file"; data: Uint8Array; mediaType: string }> = [];
     if (image instanceof File && image.type.startsWith("image/") && image.size < 8 * 1024 * 1024) {
       content.push({ type: "text", text: "The figure as drawn on the board (cleaned photo):" });
@@ -49,7 +53,7 @@ export async function POST(request: Request) {
     const result = await withModels("read", async (model, meta) => {
       const response = await generateText({
         model,
-        system: instructions,
+        system: instructions + subjectHint(subject, "redraw"),
         messages: [{ role: "user", content }],
         // The nested drawing schema is too deep for Gemini's schema enforcement: ask for JSON and
         // normalise leniently, keeping every usable shape instead of rejecting the whole figure.

@@ -130,3 +130,5 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .quick-button { margin-top: -4px; padding: 11px 14px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid #c9ccc3; border-radius: 12px; background: var(--white); color: var(--ink); font-size: 13.5px; font-weight: 700; cursor: pointer; }
 .quick-button span { font-size: 11px; font-weight: 500; color: var(--muted); }
 .quick-button:disabled { opacity: .45; cursor: not-allowed; }
+.subject-field .subject-switch { align-self: flex-start; flex-wrap: wrap; }
+.subject-note { display: block; margin-top: 6px; font-size: 12px; font-style: normal; color: #5f6a64; }

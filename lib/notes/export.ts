@@ -12,6 +12,7 @@ export function notesToMarkdown(doc: NotesDoc, figurePath = (name: string) => `f
     for (const block of section.blocks) {
       if (block.kind === "heading") lines.push(`### ${block.content}`, "");
       else if (block.kind === "equation") lines.push("$$", block.content, "$$", ...(block.detail ? [`_${block.detail}_`] : []), "");
+      else if (block.kind === "code") lines.push("```" + (block.detail || "").toLowerCase().replace(/[^a-z+#]/g, ""), block.content.replace(/^```\w*\n?|\n?```$/g, ""), "```", "");
       else if (block.kind === "table" && block.table) {
         if (block.content) lines.push(`**${block.content}**`, "");
         lines.push(`| ${block.table.columns.join(" | ")} |`, `| ${block.table.columns.map(() => "---").join(" | ")} |`);

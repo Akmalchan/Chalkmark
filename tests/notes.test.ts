@@ -243,3 +243,19 @@ test("vectors are also read from the columns of A = [v1 v2]", async () => {
   const facts = boardFacts(["A = \\begin{bmatrix} v_1 & v_2 \\end{bmatrix} = \\begin{bmatrix} 2 & 1 \\\\ 1 & -2 \\end{bmatrix}"]);
   assert.deepEqual(facts.vectors.map(v => [v.name, v.x, v.y]), [["v1", 2, 1], ["v2", 1, -2]]);
 });
+
+test("data structures are normalized from loose JSON: aliases, null nodes and dangling edges", async () => {
+  const { normalizeFigureSpec } = await import("../lib/notes/figure");
+  const bst = normalizeFigureSpec({ kind: "structure", structure: { type: "Binary Search Tree", nodes: [{ id: "8", label: "8" }, { id: "3", label: "3" }, { id: "n", label: "NIL" }],
+    edges: [{ from: "8", to: "3", side: "LEFT" }, { from: "8", to: "n", side: "right" }, { from: "8", to: "ghost" }], pointers: [{ label: "root", to: "8" }] } });
+  assert.equal(bst?.kind, "structure");
+  assert.equal(bst?.structure?.type, "tree");
+  assert.deepEqual(bst?.structure?.nodes.map(n => n.label), ["8", "3"]);
+  assert.deepEqual(bst?.structure?.edges.map(e => [e.from, e.to, e.side]), [["8", "3", "left"]]);
+  const list = normalizeFigureSpec({ kind: "structure", structure: { type: "linked list", nodes: ["12", "7"].map(v => ({ id: v, label: v })), edges: [{ from: "12", to: "7" }] } });
+  assert.equal(list?.structure?.type, "linked-list");
+  assert.equal(list?.structure?.directed, true);
+  const hash = normalizeFigureSpec({ kind: "structure", structure: { type: "hashmap", buckets: [{ index: 0, chain: [20, 40] }, { key: "1", items: [] }] } });
+  assert.deepEqual(hash?.structure?.buckets, [{ key: "0", items: ["20", "40"] }, { key: "1", items: [] }]);
+  assert.equal(normalizeFigureSpec({ kind: "structure", structure: { type: "stack", cells: [] } }), null);
+});

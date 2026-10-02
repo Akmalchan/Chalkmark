@@ -6,6 +6,7 @@ import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
 import { DEFAULT_CONFIG, type EngineConfig } from "@/lib/board/engine";
 import { extractAudioChunks, FrameGrabber, listCameras, loadVideo, openFrameDecoder, restartSimulatedCamera, SegmentedRecorder, seekTo, SIMULATED_CAMERA, startCamera } from "@/lib/client/media";
 import { LectureSession, type BoardState } from "@/lib/client/session";
+import { SUBJECTS, type Subject } from "@/lib/notes/subject";
 import { PersonMasker } from "@/lib/client/person";
 import { runYouTube } from "@/lib/client/youtube";
 import { youtubeId } from "@/lib/source-metadata";
@@ -47,6 +48,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
   const [media, setMedia] = useState<{ blob: Blob; name: string } | null>(null);
   const [useAudio, setUseAudio] = useState(true);
   const [usePersonMask, setUsePersonMask] = useState(true);
+  const [subject, setSubject] = useState<Subject>("auto");
   const [tuning, setTuning] = useState<Partial<EngineConfig>>({});
   const [maskActive, setMaskActive] = useState(false);
   const [title, setTitle] = useState("");
@@ -152,6 +154,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     if (cameraId === SIMULATED_CAMERA) restartSimulatedCamera();
     const grabber = new FrameGrabber(element);
     const active = new LectureSession("camera", grabber.toCapture(quad!), { stableSeconds: 1.2, ...tuning }, title);
+    active.subject = subject;
     const wakeLock = await navigator.wakeLock?.request("screen").catch(() => null);
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
@@ -175,7 +178,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     }
     masker?.close();
     await wakeLock?.release().catch(() => undefined);
-  }, [quad, title, useAudio, cameraId, usePersonMask, tuning]);
+  }, [quad, title, useAudio, cameraId, usePersonMask, tuning, subject]);
 
   /**
    * `quick`: about 3× fewer frames and no speech transcript (the slowest step) — notes in roughly a
@@ -187,6 +190,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     const interval = quick ? Math.min(4, Math.max(2.5, duration / 360)) : Math.min(2, Math.max(0.5, duration / 1200));
     const grabber = new FrameGrabber(element);
     const active = new LectureSession("file", grabber.toCapture(quad!), { stableSeconds: quick ? interval * 1.6 : Math.max(1.2, interval * 2.2), ...tuning }, title || media?.name, dry);
+    active.subject = subject;
     (window as unknown as { __session?: LectureSession }).__session = active;
     const masker = usePersonMask ? await PersonMasker.create() : null;
     setMaskActive(Boolean(masker));
@@ -233,7 +237,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     masker?.close();
     if (dry) { running.current = false; await active.pruneAndReadQueued(); setStage("Dry run finished: engine only, no Gemini calls"); return; }
     await finish(active);
-  }, [quad, title, media, useAudio, usePersonMask, tuning, finish, dry]);
+  }, [quad, title, media, useAudio, usePersonMask, tuning, finish, dry, subject]);
 
   const startYouTube = useCallback(async () => {
     setError("");
@@ -380,7 +384,16 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
               </label>
             )}
             {source === "file" && media && <div className="field-note">{media.name} · {formatClock(video.current?.duration ?? 0)}</div>}
-            <label className="field"><span>Lecture title <em>(optional)</em></span><input value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g. Calculus I — derivatives" /></label>
+            <div className="field subject-field">
+              <span>Subject</span>
+              <div className="source-switch subject-switch" role="radiogroup" aria-label="Subject">
+                {SUBJECTS.map(option => (
+                  <button key={option.id} type="button" role="radio" aria-checked={subject === option.id} className={subject === option.id ? "active" : ""} onClick={() => setSubject(option.id)}>{option.label}</button>
+                ))}
+              </div>
+              {subject === "cs" && <em className="subject-note">Trees, lists, graphs and hash tables are redrawn as clean structures; code is kept as code.</em>}
+            </div>
+            <label className="field"><span>Lecture title <em>(optional)</em></span><input value={title} onChange={event => setTitle(event.target.value)} placeholder={subject === "cs" ? "e.g. CSC 220 — binary search trees" : "e.g. Calculus I — derivatives"} /></label>
             <label className="toggle"><input type="checkbox" checked={useAudio} onChange={event => setUseAudio(event.target.checked)} /><span>{source === "camera" ? "Record speech from the microphone" : "Transcribe the video's audio"}</span></label>
             <label className="toggle"><input type="checkbox" checked={usePersonMask} onChange={event => setUsePersonMask(event.target.checked)} /><span>Detect the lecturer with MediaPipe <em>(on-device)</em></span></label>
             <details className="tuning">

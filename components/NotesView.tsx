@@ -46,6 +46,7 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
             blocks: section.blocks.map(({ id, kind, content, detail }) => ({ id, kind, content, detail })),
           })),
           transcript: transcriptText(doc.transcript, -Infinity, Infinity, 30_000),
+          subject: doc.subject ?? "auto",
         }),
       });
       const payload = await response.json();

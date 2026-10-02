@@ -5,16 +5,16 @@ import type { StudySheet } from "./sheet";
 
 /* ---------- What Gemini returns when it reads one board snapshot ---------- */
 
-export const BLOCK_KINDS = ["heading", "text", "equation", "table", "graph", "diagram", "drawing"] as const;
+export const BLOCK_KINDS = ["heading", "text", "equation", "code", "table", "graph", "diagram", "drawing"] as const;
 export type BlockKind = (typeof BLOCK_KINDS)[number];
 export const FIGURE_KINDS: BlockKind[] = ["graph", "diagram", "drawing"];
 
 export const boardReadSchema = z.object({
   blocks: z.array(z.object({
-    kind: z.enum(BLOCK_KINDS).describe("heading: a title on the board; text: words/bullets; equation: one line of math; table: rows/columns; graph: axes with curves/points; diagram: boxes/arrows/flow/geometry; drawing: any sketch or picture (a car, a cell, a circuit)"),
+    kind: z.enum(BLOCK_KINDS).describe("heading: a title on the board; text: words/bullets; equation: one line of math; code: pseudocode or program code; table: rows/columns; graph: axes with curves/points; diagram: boxes/arrows/flow/geometry; drawing: any sketch or picture (a car, a cell, a circuit)"),
     box_2d: z.array(z.number()).describe("[ymin, xmin, ymax, xmax] of this item on the image, integers 0-1000"),
-    content: z.string().describe("heading/text: Markdown with $...$ around math. equation: KaTeX LaTeX only, no $ delimiters. table: a one-line title. graph/diagram/drawing: a short caption naming what is shown"),
-    detail: z.string().describe("equation: what it means in plain words. graph/diagram/drawing: a precise description of every label, axis, arrow and part so a student could redraw it. Otherwise empty"),
+    content: z.string().describe("heading/text: Markdown with $...$ around math. equation: KaTeX LaTeX only, no $ delimiters. code: the code exactly as written, line breaks and indentation kept. table: a one-line title. graph/diagram/drawing: a short caption naming what is shown"),
+    detail: z.string().describe("equation: what it means in plain words. code: the language if known (e.g. Java), else empty. graph/diagram/drawing: a precise description of every label, axis, arrow and part so a student could redraw it. Otherwise empty"),
     table: z.object({ columns: z.array(z.string()), rows: z.array(z.array(z.string())) }).nullable().describe("Only for kind=table; cells may use $...$ math. Otherwise null"),
     legibility: z.enum(["clear", "partial", "unclear"]),
   })),
@@ -126,6 +126,7 @@ export type NotesDoc = {
   /** "summary" when speech is summarised per board (YouTube mode) rather than transcribed. */
   transcriptKind?: "verbatim" | "summary";
   source?: { kind: "youtube"; videoId: string };
+  subject?: import("./subject").Subject;
   /** Condensed one-to-two-page study sheet (generated after the notes). */
   sheet?: StudySheet;
 };

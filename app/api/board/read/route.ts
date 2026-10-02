@@ -1,3 +1,4 @@
+import { asSubject, subjectHint } from "@/lib/notes/subject";
 import { generateText, Output } from "ai";
 import { NextResponse } from "next/server";
 import { boardReadSchema } from "@/lib/notes/schema";
@@ -15,8 +16,10 @@ You receive the board twice: first a cleaned "paper" rendering (lecturer removed
 Split everything written or drawn into blocks, in the order a student would read them (top-to-bottom, left-to-right, following columns and arrows):
 - heading, text: transcribe faithfully, fixing nothing the lecturer did not write. Use Markdown bullets for lists and $...$ for inline math.
 - equation: one block per line of math, as KaTeX-compatible LaTeX (no $ delimiters). Keep the lecturer's notation, including subscripts, primes, limits and arrows.
-- table: columns and rows exactly as drawn.
+- code: pseudocode or program code, one block per routine, exactly as written (keep line breaks and indentation; do not fix bugs).
+- table: columns and rows exactly as drawn (complexity tables included: operation, average, worst).
 - graph: anything with axes. diagram: boxes, arrows, flowcharts, geometry, trees. drawing: any other sketch (a car, a cell, a circuit, a person). For these, content is a short caption and detail describes every label, axis, tick, arrow and part precisely.
+- Data structures (arrays, linked lists, stacks, queues, trees, heaps, graphs, hash tables) are diagrams. Name the structure in content ("Binary search tree after inserting 7") and in detail list every node value, every edge or pointer (parent→child with left/right, a→b with weights, next/prev), every index and every named pointer (head, tail, top, root, i, j), exactly as drawn.
 - box_2d must tightly enclose the ink of that block on the image: [ymin, xmin, ymax, xmax] as integers 0-1000.
 - Messy handwriting: use the spoken context (if given) and mathematical consistency to resolve ambiguous symbols. If something stays unreadable, write [?] in its place and set legibility to partial or unclear. Never invent content that is not on the board.
 - The photo may show only part of the board (the camera can pan, the lecturer can block it). Skip writing that is cut off by the image edge, half-erased, or partly hidden — another photo holds the complete version. Never output fragments such as a lone word or the tail of a sentence.
@@ -29,6 +32,7 @@ export async function POST(request: Request) {
     const paper = form.get("paper");
     const raw = form.get("raw");
     const context = String(form.get("context") ?? "").slice(0, 4000);
+    const subject = asSubject(form.get("subject"));
     if (!(paper instanceof File) || !paper.type.startsWith("image/") || paper.size > MAX_IMAGE_BYTES) {
       return NextResponse.json({ error: "Send the board as a PNG or JPEG under 12 MB." }, { status: 400 });
     }
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
     const result = await withModels("read", async (model, meta) => {
       const response = await generateText({
         model,
-        system: instructions,
+        system: instructions + subjectHint(subject, "read"),
         messages: [{ role: "user", content }],
         output: Output.object({ schema: boardReadSchema }),
         providerOptions: providerOptions(meta.provider, { mediaResolution: "MEDIA_RESOLUTION_HIGH", thinkingConfig: { thinkingLevel: "low" } }),

@@ -1,6 +1,7 @@
 import { useId } from "react";
 import type { FigureSpec } from "@/lib/notes/figure";
 import { niceTicks, sampleExpression } from "@/lib/plot-math";
+import { StructureFigure } from "./StructureFigure";
 
 type Color = (typeof import("@/lib/notes/figure").FIGURE_COLORS)[number];
 const PALETTE: Record<Color, string> = {
@@ -132,5 +133,6 @@ function Sketch({ spec }: { spec: NonNullable<FigureSpec["sketch"]> }) {
 export function FigureRedraw({ spec }: { spec: FigureSpec }) {
   if (spec.kind === "plot" && spec.plot) return <Plot spec={spec.plot} />;
   if (spec.kind === "sketch" && spec.sketch) return <Sketch spec={spec.sketch} />;
+  if (spec.kind === "structure" && spec.structure) return <StructureFigure spec={spec.structure} />;
   return null;
 }

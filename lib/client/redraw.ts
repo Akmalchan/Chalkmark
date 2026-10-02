@@ -1,4 +1,5 @@
 "use client";
+import type { Subject } from "@/lib/notes/subject";
 
 import type { FigureSpec } from "../notes/figure";
 import { boardFacts, checkFigure, plotSignature } from "../notes/figure-check";
@@ -16,6 +17,7 @@ export async function redrawFigures(
   files: Map<string, Blob>,
   onProgress: (done: number, total: number) => void,
   onUsage: (usage: Usage, model: string) => void,
+  subject: Subject = "auto",
 ): Promise<number> {
   const jobs = sections.flatMap(section => section.blocks
     .filter(block => FIGURE_KINDS.includes(block.kind))
@@ -33,6 +35,7 @@ export async function redrawFigures(
         const crop = block.figure ? files.get(block.figure) : undefined;
         if (crop) form.append("image", crop, block.figure!);
         form.append("kind", block.kind);
+        form.append("subject", subject);
         form.append("caption", block.content);
         form.append("detail", block.detail);
         // Board text gives exact values (v₂ = (1, −2)) for what IS drawn; the prompt forbids using it

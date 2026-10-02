@@ -1,5 +1,6 @@
 "use client";
 
+import type { Subject } from "@/lib/notes/subject";
 import { BoardEngine, type EngineConfig, type FrameReport, type PersonMask, type Snapshot } from "../board/engine";
 import type { Quad, RGBAImage } from "../board/geometry";
 import { renderPaper } from "../board/paper";
@@ -66,6 +67,9 @@ export class LectureSession {
   private version = 0;
 
   /** `dry`: run only the on-device engine (no Gemini calls) — for tuning on real footage. */
+  /** Set by the studio before starting: steers what the models look for. */
+  subject: Subject = "auto";
+
   constructor(readonly source: SourceKind, quad: Quad, config: Partial<EngineConfig> = {}, private readonly title = "", readonly dry = false) {
     this.engine = new BoardEngine(quad, config);
   }
@@ -219,6 +223,7 @@ export class LectureSession {
     form.append("paper", paperBlob, state.page.paper);
     form.append("raw", rawBlob, state.page.raw);
     form.append("context", context);
+    form.append("subject", this.subject);
     try {
       const result = await postForm<{ blocks: BoardRead["blocks"]; usage: Usage; model: string }>("/api/board/read", form);
       this.addUsage(result.usage, result.model);
@@ -297,7 +302,7 @@ export class LectureSession {
     const doc = await this.compose();
     await redrawFigures(doc.sections, this.files,
       (done, total) => onStage?.(total ? `Redrawing figures cleanly · ${done}/${total}` : "Finishing"),
-      (usage, model) => this.addUsage(usage, model));
+      (usage, model) => this.addUsage(usage, model), this.subject);
     doc.stats.inputTokens = this.usage.inputTokens;
     doc.stats.outputTokens = this.usage.outputTokens;
     doc.stats.models = [...this.models];
@@ -333,6 +338,7 @@ export class LectureSession {
     this.warnings = warnings;
 
     const doc: NotesDoc = {
+      subject: this.subject,
       version: 2,
       title: composition.title,
       course: composition.course,
