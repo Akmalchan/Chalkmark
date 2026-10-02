@@ -49,7 +49,7 @@ export function MathText({ text }: { text: string }) {
     const html = mathHtml(text, false);
     if (html) return <span className="inline-math" dangerouslySetInnerHTML={{ __html: html }} />;
   }
-  const segments = text.split(MATH_SEGMENT).filter(Boolean);
+  const segments = (text.includes("$") ? text : delimitBareMath(text)).split(MATH_SEGMENT).filter(Boolean);
   return <>{segments.map((segment, index) => {
     const isMath = /^(\$\$|\$|\\\(|\\\[)/.test(segment);
     if (isMath) {
@@ -58,6 +58,15 @@ export function MathText({ text }: { text: string }) {
     }
     return <Fragment key={index}>{bold(segment)}</Fragment>;
   })}</>;
+}
+
+/**
+ * Prose with bare LaTeX tokens ("solved via x = A^{-1}b"): wrap just those tokens in $…$ so they
+ * render as math while the words around them stay text.
+ */
+const BARE_MATH = /[A-Za-z0-9()[\]|]*(?:[\^_]\{[^}\s]*\}|[\^_][A-Za-z0-9+-]+|\\[a-zA-Z]+(?:\{[^}]*\})*)(?:[A-Za-z0-9()[\]|]*(?:[\^_]\{[^}\s]*\}|[\^_][A-Za-z0-9+-]+|\\[a-zA-Z]+(?:\{[^}]*\})*))*[A-Za-z0-9()[\]|]*/g;
+export function delimitBareMath(text: string): string {
+  return text.replace(BARE_MATH, token => (token.length > 1 ? `$${token}$` : token));
 }
 
 function bold(text: string): ReactNode {

@@ -15,7 +15,8 @@ import { z } from "zod";
 export type Task = "read" | "transcribe" | "compose" | "quick" | "caption" | "youtube-scan" | "youtube-read";
 export type ProviderName = "vertex" | "google";
 
-// Pro leads where quality decides the notes (reading boards, redrawing figures, composing notes and the sheet).
+// Pro leads where its vision is worth the wait: reading boards and redrawing figures. Writing notes and the
+// study sheet from text is as good on Flash and several times faster (sheet: ~10 s vs ~110 s).
 const PRO = ["gemini-3.1-pro-preview"];
 const STRONG = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash"];
 const LIGHT = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
@@ -24,7 +25,7 @@ const LIGHT = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 const TASK_MODELS: Record<Task, string[]> = {
   read: [...PRO, ...STRONG, ...LIGHT],
   transcribe: [...STRONG, ...LIGHT],
-  compose: [...PRO, ...STRONG, ...LIGHT],
+  compose: [...STRONG, ...PRO, ...LIGHT],
   quick: [...STRONG, ...LIGHT],
   // YouTube links are read by the Gemini API (Vertex rejects them), so these run on the API key when one is set.
   "youtube-scan": [...STRONG, ...LIGHT],
