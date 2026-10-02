@@ -299,3 +299,21 @@
 /* Hero mini-board: keep the formula on one line however narrow the hero gets. */
 .visual-input { width: auto; min-width: 220px; }
 .board-scribble { white-space: nowrap; }
+
+/* 03: camera frame with the cell overlay vs. board memory */
+.pa-chalkboard { fill: #1f3a2c; }
+.pa-frame { fill: none; stroke: rgba(223,232,226,.4); stroke-width: 1; }
+.pa-frame-memory { fill: none; stroke: #b9e45e; stroke-width: 1.4; }
+.pa-chalk text { font-family: var(--font-serif), serif !important; font-size: 14px; font-style: italic; fill: #f1efe4; }
+.pa-chalk text.small { font-size: 11px; fill: #f6c48f; }
+.pa-silhouette { fill: #2b2f36; stroke: #4a505a; stroke-width: 1; }
+.pa-ov-person { fill: rgba(255,72,48,.5); stroke: rgba(255,140,110,.85); stroke-width: .6; }
+.pa-ov-buffer { fill: rgba(255,107,53,.14); stroke: rgba(255,107,53,.7); stroke-width: .6; }
+.pa-ov-ink { fill: rgba(185,228,94,.12); stroke: rgba(216,255,101,.55); stroke-width: .5; }
+
+/* 04: lecture chart */
+.pa-axis-label { font-size: 7.5px; fill: #8fa197; }
+.pa-series { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.pa-series.memory { stroke: #b9e45e; stroke-width: 1.6; }
+.pa-series.camera { stroke: #3ea2f2; stroke-width: 1; opacity: .9; }
+.pa-chart-legend text { font-size: 8px; fill: #c9d6ce; }

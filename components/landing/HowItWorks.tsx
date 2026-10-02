@@ -211,43 +211,10 @@ function StepArt({ kind }: { kind: ArtKind }) {
           <path d="M16 38 h62 M16 60 h44 M16 82 h70" className="pa-ink" />
         </g>
       </>);
-    case "trust": {
-      // Cell grid: a person-shaped block of ignored cells, a buffer around it, trusted ink elsewhere.
-      const cols = 16, rows = 9, size = 16, gap = 3, x0 = 28, y0 = 20;
-      const at = (c: number, r: number) => r * cols + c;
-      const person = new Set<number>([at(11, 1), at(12, 1), at(11, 2), at(12, 2)]);
-      for (let r = 3; r < rows; r += 1) for (let c = 10; c <= 13; c += 1) person.add(at(c, r));
-      const buffer = new Set<number>();
-      for (const p of person) {
-        const pc = p % cols, pr = Math.floor(p / cols);
-        for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {
-          const c = pc + dc, r = pr + dr;
-          if (c >= 0 && r >= 0 && c < cols && r < rows && !person.has(at(c, r))) buffer.add(at(c, r));
-        }
-      }
-      const ink = new Set<number>();
-      [[1, 1, 6], [1, 3, 4], [1, 5, 7], [1, 7, 3]].forEach(([c, r, n]) => { for (let i = 0; i < n; i += 1) ink.add(at(c + i, r)); });
-      const cls = (i: number) => person.has(i) ? "pa-red" : buffer.has(i) ? "pa-buffer" : ink.has(i) ? "pa-lime" : "pa-cell";
-      return svg(<>
-        {Array.from({ length: cols * rows }, (_, i) => (
-          <rect key={i} x={x0 + (i % cols) * (size + gap)} y={y0 + Math.floor(i / cols) * (size + gap)} width={size} height={size} rx="3" className={cls(i)} />
-        ))}
-      </>);
-    }
+    case "trust":
+      return <TrustArt />;
     case "erase":
-      // Ink on the board over time: it builds up, the board is saved at the peak, then it's erased.
-      return svg(<>
-        <defs>
-          <linearGradient id="pa-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#b9e45e" stopOpacity=".28" /><stop offset="1" stopColor="#b9e45e" stopOpacity="0" /></linearGradient>
-        </defs>
-        {[0, 1, 2, 3].map(i => <path key={i} d={`M30 ${40 + i * 40} H340`} className="pa-grid" />)}
-        <path d="M30 180 H340 M30 180 V24" className="pa-axis" />
-        <path d="M30 176 C 80 170, 120 110, 170 78 S 220 52, 236 50 L 246 172 C 270 168, 310 130, 340 104 L 340 180 L 30 180 Z" fill="url(#pa-area)" />
-        <path d="M30 176 C 80 170, 120 110, 170 78 S 220 52, 236 50 L 246 172 C 270 168, 310 130, 340 104" className="pa-line thin" />
-        <path d="M236 50 V180" className="pa-dash" />
-        <circle cx="236" cy="50" r="10" className="pa-pulse" />
-        <circle cx="236" cy="50" r="5" className="pa-dot" />
-      </>);
+      return <EraseChart />;
     case "supersede":
       // Drafts are dropped; the finished board is kept.
       return svg(<>
@@ -281,25 +248,35 @@ function StepArt({ kind }: { kind: ArtKind }) {
         </g>
       </>);
     case "compose":
-      // Scattered blocks (some duplicates, one blurry) → two clean sections.
+      // Blocks read from different boards (two blurry re-reads) → merged sections.
       return svg(<>
-        {[
-          [20, 30, 90, "eq", ""], [40, 66, 70, "eq", "blurry"], [16, 102, 84, "tx", ""],
-          [44, 138, 64, "tx", "blurry"], [22, 170, 96, "tb", ""],
-        ].map(([x, y, w, type, state], i) => (
-          <g key={i} transform={`translate(${x} ${y})`} className={state ? "faded" : undefined}>
-            <rect width={w as number} height="22" rx="4" className={`pa-pill ${type} ${state}`} />
-            <path d={`M10 11 h${(w as number) - 26}`} className="pa-card-line" />
-          </g>
-        ))}
-        <path d="M112 41 C 160 41, 170 70, 214 70 M112 77 C 160 77, 170 70, 214 70 M102 113 C 160 113, 170 76, 214 76 M110 149 C 160 149, 170 150, 214 150 M120 181 C 160 181, 170 156, 214 156" className="pa-guide strong" />
-        {[[40, 72], [120, 72]].map(([y, h], i) => (
-          <g key={i} transform={`translate(218 ${y})`}>
-            <rect width="126" height={h} rx="6" className="pa-card" />
-            <rect x="12" y="12" width="56" height="8" rx="3" className="pa-head" />
-            <path d={`M12 34 h96 M12 46 h72 M12 58 h84`} className="pa-card-line" />
-          </g>
-        ))}
+        <text x="14" y="20" className="pa-label">blocks from many boards</text>
+        <g className="pa-mono">
+          {[
+            ["2x + y = 3", "b04", ""], ["2x + y = [?]", "b09", "faded"], ["x − 2y = −1", "b09", ""],
+            ["Row picture", "b11", ""], ["Row picture", "b13", "faded"], ["A = [2 1; 1 −2]", "b20", ""],
+          ].map(([label, board, state], i) => (
+            <g key={i} transform={`translate(14 ${30 + i * 26})`} className={state || undefined}>
+              <rect width="128" height="20" rx="3" className="pa-box" />
+              <text x="8" y="14">{label}</text>
+              <text x="122" y="14" textAnchor="end" className="dim">{board}</text>
+            </g>
+          ))}
+        </g>
+        <path d="M146 40 C 170 40, 170 52, 196 52 M146 66 C 170 66, 170 52, 196 52 M146 92 C 170 92, 172 76, 196 76 M146 118 C 170 118, 172 132, 196 132 M146 144 C 170 144, 172 132, 196 132 M146 170 C 170 170, 172 156, 196 156" className="pa-guide strong" />
+        <g className="pa-mono">
+          <text x="200" y="20" className="pa-label">notes</text>
+          <rect x="200" y="28" width="146" height="72" rx="5" className="pa-section" />
+          <text x="210" y="44" className="lime">§1 The system</text>
+          <text x="210" y="60">2x + y = 3</text>
+          <text x="210" y="76">x − 2y = −1</text>
+          <text x="210" y="92" className="dim">[?] matched its twin</text>
+          <rect x="200" y="112" width="146" height="58" rx="5" className="pa-section" />
+          <text x="210" y="128" className="lime">§2 Row picture</text>
+          <text x="210" y="144">Row picture</text>
+          <text x="210" y="160">A = [2 1; 1 −2]</text>
+          <text x="200" y="192" className="coral">a flag with no twin → kept</text>
+        </g>
       </>);
     case "check":
       // Two board lines meet at (1, 1); a wrong redraw (dashed) is snapped onto the right line.
@@ -347,4 +324,116 @@ function StepArt({ kind }: { kind: ArtKind }) {
         ))}
       </>);
   }
+}
+
+/** What the engine sees (camera + cell overlay) next to what it remembers (lecturer gone). */
+function TrustArt() {
+  const W = 160, H = 160, COLS = 16, ROWS = 16, cw = W / COLS, ch = H / ROWS;
+  // Lecturer silhouette, in panel coordinates.
+  const head = { x: 108, y: 34, r: 9 };
+  const body = "M90 160 L93 68 C 94 55, 100 50, 108 49 C 116 50, 122 55, 123 68 L126 160 Z";
+  const inPerson = (c: number, r: number) => {
+    const x0 = c * cw, x1 = x0 + cw, y0 = r * ch, y1 = y0 + ch;
+    const cx = Math.max(x0, Math.min(head.x, x1)), cy = Math.max(y0, Math.min(head.y, y1));
+    if (Math.hypot(cx - head.x, cy - head.y) < head.r) return true;
+    return x1 > 92 && x0 < 125 && y1 > 50;
+  };
+  const person = new Set<number>(), buffer = new Set<number>();
+  for (let r = 0; r < ROWS; r += 1) for (let c = 0; c < COLS; c += 1) if (inPerson(c, r)) person.add(r * COLS + c);
+  for (const p of person) {
+    const pc = p % COLS, pr = Math.floor(p / COLS);
+    for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {
+      const c = pc + dc, r = pr + dr, n = r * COLS + c;
+      if (c >= 0 && r >= 0 && c < COLS && r < ROWS && !person.has(n)) buffer.add(n);
+    }
+  }
+  // Rows of cells that hold writing (two lines + the small note).
+  const ink = (c: number, r: number) => ((r === 2 || r === 3) && c >= 1 && c <= 13) || ((r === 7 || r === 8) && c >= 1 && c <= 12) || ((r === 12 || r === 13) && c >= 1 && c <= 9);
+  const writing = (
+    <g className="pa-chalk">
+      <text x="10" y="35">f(x) = x² + 3x</text>
+      <text x="10" y="85">f′(x) = 2x + 3</text>
+      <text x="10" y="133" className="small">slope of tangent</text>
+    </g>
+  );
+  return svg(<>
+    <text x="16" y="18" className="pa-label">camera</text>
+    <text x="196" y="18" className="pa-label">memory</text>
+    <g transform="translate(16 26)">
+      <rect width={W} height={H} rx="3" className="pa-chalkboard" />
+      {writing}
+      <circle cx={head.x} cy={head.y} r={head.r} className="pa-silhouette" />
+      <path d={body} className="pa-silhouette" />
+      {Array.from({ length: COLS * ROWS }, (_, i) => {
+        const c = i % COLS, r = Math.floor(i / COLS);
+        const cls = person.has(i) ? "pa-ov-person" : buffer.has(i) ? "pa-ov-buffer" : ink(c, r) ? "pa-ov-ink" : null;
+        return cls && <rect key={i} x={c * cw + 0.5} y={r * ch + 0.5} width={cw - 1} height={ch - 1} rx="1" className={cls} />;
+      })}
+      <rect width={W} height={H} rx="3" className="pa-frame" />
+    </g>
+    <path d="M181 106 h9 m-5 -4 l5 4 -5 4" className="pa-arrow" />
+    <g transform="translate(196 26)">
+      <rect width={W - 12} height={H} rx="3" className="pa-chalkboard" />
+      {writing}
+      <rect width={W - 12} height={H} rx="3" className="pa-frame-memory" />
+    </g>
+  </>);
+}
+
+/**
+ * A full lecture as the engine measures it: ink visible to the camera (dips whenever the lecturer
+ * blocks the board), the steadier board memory, and a snapshot just before each erase.
+ */
+function EraseChart() {
+  const T = 960, X0 = 44, X1 = 344, Y0 = 26, Y1 = 166, VMAX = 2400;
+  const cycles = [
+    { start: 0, peakT: 300, base: 0, peak: 1600 },
+    { start: 330, peakT: 625, base: 160, peak: 2120 },
+    { start: 655, peakT: 950, base: 220, peak: 1460 },
+  ];
+  const memory = (t: number) => {
+    for (let i = cycles.length - 1; i >= 0; i -= 1) {
+      const c = cycles[i];
+      if (t < c.start) continue;
+      if (t <= c.peakT) {
+        const u = (t - c.start) / (c.peakT - c.start);
+        // Writing comes in bursts with pauses: a monotone curve with two irregular rhythms.
+        const written = u - 0.6 * Math.sin(2 * Math.PI * 7 * u) / (2 * Math.PI * 7) - 0.3 * Math.sin(2 * Math.PI * 13 * u + 1) / (2 * Math.PI * 13);
+        return c.base + (c.peak - c.base) * Math.min(1, Math.max(0, written));
+      }
+      const next = cycles[i + 1];
+      if (!next) return c.peak;
+      const u = Math.min(1, (t - c.peakT) / (next.start - c.peakT));
+      return c.peak + (next.base - c.peak) * u;
+    }
+    return 0;
+  };
+  // Deterministic "lecturer in the way" dips and sensor noise.
+  const occlusion = (t: number) => 0.55 * Math.max(0, Math.sin(t / 17) * Math.sin(t / 47 + 1)) ** 1.5 + 0.05 * Math.sin(t * 1.7) ** 2;
+  const visible = (t: number) => Math.max(0, memory(t) * (1 - occlusion(t)) + 30 * Math.sin(t * 3.1) + 14 * Math.sin(t * 7.3));
+  const x = (t: number) => X0 + (t / T) * (X1 - X0);
+  const y = (v: number) => Y1 - (v / VMAX) * (Y1 - Y0);
+  const path = (f: (t: number) => number) => Array.from({ length: T / 4 + 1 }, (_, i) => `${i ? "L" : "M"}${x(i * 4).toFixed(1)} ${y(f(i * 4)).toFixed(1)}`).join(" ");
+  const snapshots = cycles.map(c => c.peakT);
+  return svg(<>
+    {[0, 800, 1600, 2400].map(v => (
+      <g key={v}>
+        <path d={`M${X0} ${y(v)} H${X1}`} className="pa-grid" />
+        <text x={X0 - 6} y={y(v) + 3} className="pa-axis-label" textAnchor="end">{v ? `${v / 1000}k` : "0"}</text>
+      </g>
+    ))}
+    {[0, 240, 480, 720, 960].map(t => (
+      <text key={t} x={x(t)} y={Y1 + 14} className="pa-axis-label" textAnchor="middle">{`${t / 60}:00`}</text>
+    ))}
+    <path d={`M${X0} ${Y0 - 4} V${Y1} H${X1}`} className="pa-axis" />
+    {snapshots.map(t => <path key={t} d={`M${x(t)} ${Y0} V${Y1}`} className="pa-dash" />)}
+    <path d={path(visible)} className="pa-series camera" />
+    <path d={path(memory)} className="pa-series memory" />
+    {snapshots.map(t => <circle key={t} cx={x(t)} cy={y(memory(t))} r="3.6" className="pa-dot" />)}
+    <g transform={`translate(${X0} 194)`} className="pa-chart-legend">
+      <path d="M0 -3 h14" className="pa-series memory" /><text x="19" y="0">board memory</text>
+      <path d="M104 -3 h14" className="pa-series camera" /><text x="123" y="0">visible to camera</text>
+      <circle cx="232" cy="-3" r="3.4" className="pa-dot" /><text x="240" y="0">snapshot</text>
+    </g>
+  </>);
 }
