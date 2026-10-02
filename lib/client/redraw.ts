@@ -1,6 +1,8 @@
 "use client";
 
 import type { FigureSpec } from "../notes/figure";
+import { boardFacts, checkFigure, plotSignature } from "../notes/figure-check";
+import { compileExpression } from "../plot-math";
 import { FIGURE_KINDS, type NotesSection } from "../notes/schema";
 
 type Usage = { inputTokens: number; outputTokens: number };
@@ -19,6 +21,8 @@ export async function redrawFigures(
     .filter(block => FIGURE_KINDS.includes(block.kind))
     .map(block => ({ section, block })));
   let done = 0, ok = 0;
+  // Exact values the board states anywhere in the lecture (line equations, vectors).
+  const facts = boardFacts(sections.flatMap(section => section.blocks.filter(block => !FIGURE_KINDS.includes(block.kind)).map(block => block.content)));
   onProgress(0, jobs.length);
   const queue = [...jobs];
   const worker = async () => {
@@ -44,7 +48,10 @@ export async function redrawFigures(
           section.blocks.splice(section.blocks.indexOf(block), 1);
           return true;
         }
-        block.redraw = payload.spec;
+        // The board is the authority on numbers: check the drawing against it and snap what disagrees.
+        const verified = checkFigure(payload.spec, facts, compileExpression);
+        block.redraw = verified.spec;
+        block.redrawCheck = { checked: verified.checked, corrected: verified.corrected };
         ok += 1;
         return true;
       };
@@ -59,6 +66,19 @@ export async function redrawFigures(
     }
   };
   await Promise.all(Array.from({ length: Math.min(3, jobs.length) }, worker));
+  // After checking, the same board figure read from two photos has the same lines/vectors: keep one,
+  // the one with more drawn elements.
+  const seen = new Map<string, { section: NotesSection; block: (typeof jobs)[number]["block"] }>();
+  const size = (b: (typeof jobs)[number]["block"]) => { const p = b.redraw?.plot; return p ? p.curves.length + p.arrows.length + p.segments.length + p.points.length + p.labels.length : 0; };
+  for (const { section, block } of jobs) {
+    const signature = plotSignature(block.redraw);
+    if (!signature || !section.blocks.includes(block)) continue;
+    const first = seen.get(signature);
+    if (!first) { seen.set(signature, { section, block }); continue; }
+    const drop = size(block) > size(first.block) ? first : { section, block };
+    drop.section.blocks.splice(drop.section.blocks.indexOf(drop.block), 1);
+    if (drop === first) seen.set(signature, { section, block });
+  }
   return ok;
 }
 

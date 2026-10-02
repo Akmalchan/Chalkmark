@@ -172,3 +172,62 @@ test("the answer-key scorer recognises real Gemini LaTeX and checks figure mathe
   assert.equal(report.figures.find(f => f.id === "column-picture")?.status, "partial");
   assert.deepEqual(report.unmatched, ["[equation] e^{i\\pi} + 1 = 0"]);
 });
+
+test("figures are checked against the board's own math and snapped to it", async () => {
+  const { boardFacts, checkFigure } = await import("../lib/notes/figure-check");
+  const { compileExpression } = await import("../lib/plot-math");
+  const facts = boardFacts([
+    "Solve $\\begin{cases} 2x+y=3 \\\\ x-2y=-1 \\end{cases}$",
+    "\\begin{matrix}v_1\\\\||\\\\\\begin{bmatrix}2\\\\1\\end{bmatrix}\\end{matrix}x + \\begin{matrix}v_2\\\\||\\\\\\begin{bmatrix}1\\\\-2\\end{bmatrix}\\end{matrix}y = \\begin{bmatrix}3\\\\-1\\end{bmatrix}",
+  ]);
+  assert.equal(facts.lines.length, 2);
+  assert.deepEqual(facts.vectors.map(v => [v.name, v.x, v.y]), [["v1", 2, 1], ["v2", 1, -2]]);
+
+  // The wrong column picture from a real run: v2 drawn to (2,-1), parallelogram closing at (4,0).
+  const base = { kind: "plot" as const, sketch: null, confidence: "high" as const, notes: null };
+  const column = { ...base, plot: { xMin: -1, xMax: 5, yMin: -3, yMax: 3, xLabel: "x", yLabel: "y", grid: false, curves: [], points: [], labels: [],
+    arrows: [{ from: { x: 0, y: 0 }, to: { x: 2, y: 1 }, label: "v₁", color: "ink" as const, dashed: false }, { from: { x: 0, y: 0 }, to: { x: 2, y: -1 }, label: "v₂", color: "ink" as const, dashed: false }],
+    segments: [{ from: { x: 2, y: 1 }, to: { x: 4, y: 0 }, label: "", color: "ink" as const, dashed: true }, { from: { x: 2, y: -1 }, to: { x: 4, y: 0 }, label: "", color: "ink" as const, dashed: true }] } };
+  const fixed = checkFigure(column, facts, compileExpression);
+  assert.deepEqual(fixed.spec.plot!.arrows.map(a => [a.to.x, a.to.y]), [[2, 1], [1, -2]]);
+  assert.deepEqual(fixed.spec.plot!.segments.map(s => [s.from.x, s.from.y, s.to.x, s.to.y]), [[2, 1, 3, -1], [1, -2, 3, -1]]);
+  assert.ok(fixed.corrected.some(c => c.includes("v₂")) && fixed.checked.some(c => c.includes("v₁")));
+
+  // Row picture: one labeled line, one unlabeled hand-drawn line, a slightly-off intersection mark.
+  const row = { ...base, plot: { xMin: -2, xMax: 4, yMin: -3, yMax: 4, xLabel: "x", yLabel: "y", grid: false, arrows: [], segments: [], labels: [],
+    curves: [{ label: "x - 2y = -1", expression: "(x+1)/2", points: [], color: "ink" as const, dashed: false },
+      { label: "", expression: null, points: [{ x: -0.5, y: 4.1 }, { x: 1, y: 1.1 }, { x: 3, y: -2.9 }], color: "ink" as const, dashed: false }],
+    points: [{ at: { x: 1.1, y: 0.9 }, label: "", color: "ink" as const }] } };
+  const rowFixed = checkFigure(row, facts, compileExpression);
+  const second = compileExpression(rowFixed.spec.plot!.curves[1].expression!);
+  assert.ok(Math.abs(second(0) - 3) < 1e-9 && Math.abs(second(2) + 1) < 1e-9, "unlabeled line snapped to 2x + y = 3");
+  assert.deepEqual(rowFixed.spec.plot!.points[0].at, { x: 1, y: 1 });
+});
+
+test("exercises are counted from the board: one problem read from several photos is one exercise", async () => {
+  const { detectExercises } = await import("../lib/notes/exercises");
+  const found = detectExercises([
+    { kind: "text", content: "Solve $\\begin{cases} 2x+y=3 \\\\ x-2y=-1 \\end{cases}$, and find out its \"row picture\" and \"column picture\"" },
+    { kind: "text", content: "Solve $\\begin{cases} 2x+y=3 \\\\ x-2y=-1 \\end{cases}$" },
+    { kind: "equation", content: "x = 2y - 1" },
+    { kind: "heading", content: "Row picture" },
+    { kind: "text", content: "Example: find the derivative of $x^3$" },
+  ]);
+  assert.equal(found.length, 2);
+});
+
+test("a sum like v1 + v2 = [3;-1] is never read as the value of v2", async () => {
+  const { boardFacts } = await import("../lib/notes/figure-check");
+  const facts = boardFacts([
+    "v_1 + v_2 = \\begin{bmatrix} 3 \\\\ -1 \\end{bmatrix}",
+    "\\begin{matrix}v_1\\\\||\\\\\\begin{bmatrix}2\\\\1\\end{bmatrix}\\end{matrix}x + \\begin{matrix}v_2\\\\||\\\\\\begin{bmatrix}1\\\\-2\\end{bmatrix}\\end{matrix}y",
+    "\\vec{v}_3 = [1, 1]^T", "\\vec{v}_3 = [2, 5]^T",
+  ]);
+  assert.deepEqual(facts.vectors.map(v => [v.name, v.x, v.y]), [["v1", 2, 1], ["v2", 1, -2]]);
+});
+
+test("vectors are also read from the columns of A = [v1 v2]", async () => {
+  const { boardFacts } = await import("../lib/notes/figure-check");
+  const facts = boardFacts(["A = \\begin{bmatrix} v_1 & v_2 \\end{bmatrix} = \\begin{bmatrix} 2 & 1 \\\\ 1 & -2 \\end{bmatrix}"]);
+  assert.deepEqual(facts.vectors.map(v => [v.name, v.x, v.y]), [["v1", 2, 1], ["v2", 1, -2]]);
+});

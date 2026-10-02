@@ -184,6 +184,13 @@ function RedrawnFigure({ block, original, approx, youtube }: { block: NoteBlock;
         <span className="paper-figure-kind">{KIND_LABEL[block.kind]} · redrawn{block.writtenAt !== null && ` · ${approx}${formatClock(block.writtenAt)}`}</span>
         <strong><MathText text={block.content} /></strong>
         {block.detail && <span className="paper-figure-detail"><MathText text={block.detail} /></span>}
+        {block.redrawCheck && (block.redrawCheck.corrected.length > 0 || block.redrawCheck.checked.length > 0) && (
+          <span className="redraw-verified">
+            {block.redrawCheck.corrected.length > 0
+              ? <>Corrected to match the board: {block.redrawCheck.corrected.join(" · ")}</>
+              : <>✓ Checked against the board: {block.redrawCheck.checked.join(" · ")}</>}
+          </span>
+        )}
         {spec.confidence !== "high" && <span className="redraw-note">{spec.confidence === "low" ? "Approximate redraw" : "Redraw may simplify details"}{spec.notes ? ` — ${spec.notes}` : ""}. Compare with the board.</span>}
         {original && <button className="compare-toggle no-print" onClick={() => setShowInk(value => !value)}>{showInk ? "Hide the original" : "Compare with the board"}</button>}
         {!original && youtube && block.writtenAt !== null && <a className="watch-link no-print" href={`https://www.youtube.com/watch?v=${youtube}&t=${Math.max(0, Math.round(block.writtenAt) - 3)}s`} target="_blank" rel="noreferrer">Watch it on the board ↗</a>}

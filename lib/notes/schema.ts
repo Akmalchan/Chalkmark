@@ -68,6 +68,8 @@ export type NoteBlock = {
   graph: z.infer<typeof graphPanelSchema> | null;
   /** Clean vector redraw of a figure by Gemini; the original ink stays available for comparison. */
   redraw?: FigureSpec | null;
+  /** What was verified against (or corrected to) the board's own equations and vectors. */
+  redrawCheck?: { checked: string[]; corrected: string[] };
 };
 
 export type BoardPage = {

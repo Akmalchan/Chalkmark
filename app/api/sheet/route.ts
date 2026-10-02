@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { describeFailure, ModelChainError, providerOptions, usageOf, withModels } from "@/lib/ai/models";
 import { studySheetSchema } from "@/lib/notes/sheet";
+import { detectExercises, overlap, words } from "@/lib/notes/exercises";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +41,12 @@ export async function POST(request: Request) {
       ...section.blocks.map(block => `[${block.id} · ${block.kind}] ${block.content}${block.detail ? ` — ${block.detail.slice(0, 200)}` : ""}`),
       ...(section.takeaways.length ? ["Remember: " + section.takeaways.join(" / ")] : []),
     ].join("\n")).join("\n\n");
-    const prompt = [`Lecture: ${body.title} (${body.course})`, body.summary, "NOTES:", notes, body.transcript ? `SPEECH (for examples and emphasis):\n${body.transcript}` : ""].join("\n\n");
+    // How many exercises the lecture actually works is decided from the board, not by the model.
+    const exercises = detectExercises(body.sections.flatMap(section => section.blocks));
+    const exerciseRule = exercises.length
+      ? `The lecture works exactly ${exercises.length} exercise${exercises.length > 1 ? "s" : ""}:\n${exercises.map((e, i) => `${i + 1}. ${e}`).join("\n")}\nGive exactly one worked example (kind "lecture") per exercise above, with the numbers from the board — no other examples, and never the same exercise twice (show its other views as bullets).`
+      : "The lecture works no explicit exercise. You may add at most two short practice examples (kind \"practice\").";
+    const prompt = [`Lecture: ${body.title} (${body.course})`, body.summary, exerciseRule, "NOTES:", notes, body.transcript ? `SPEECH (for examples and emphasis):\n${body.transcript}` : ""].join("\n\n");
 
     const result = await withModels("compose", async (model, meta) => {
       const response = await generateText({
@@ -63,6 +69,20 @@ export async function POST(request: Request) {
       return { ...section, points: section.points.slice(0, 4), formulas: section.formulas.slice(0, 3), figureId, example: section.example ? { ...section.example, steps: section.example.steps.slice(0, 4) } : null };
     });
     sheet.takeaways = sheet.takeaways.slice(0, 4);
+    // Enforce the exercise count: one example per real exercise (best match), nothing invented on top.
+    const examples = sheet.sections.map((section, index) => ({ index, example: section.example })).filter(e => e.example);
+    const keep = new Set<number>();
+    if (exercises.length) {
+      for (const exercise of exercises) {
+        const best = examples.filter(e => e.example!.kind === "lecture" && !keep.has(e.index))
+          .map(e => ({ index: e.index, score: overlap(words(exercise), words(`${e.example!.problem} ${e.example!.steps.join(" ")}`)) }))
+          .sort((a, b) => b.score - a.score)[0];
+        if (best) keep.add(best.index);
+      }
+    } else {
+      examples.slice(0, 2).forEach(e => keep.add(e.index));
+    }
+    sheet.sections = sheet.sections.map((section, index) => (keep.has(index) ? section : { ...section, example: null }));
     return NextResponse.json({ sheet, usage: result.value.usage, model: result.model });
   } catch (error) {
     if (error instanceof z.ZodError) return NextResponse.json({ error: "Malformed study sheet request." }, { status: 400 });

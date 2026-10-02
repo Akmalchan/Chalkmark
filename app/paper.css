@@ -200,3 +200,4 @@
   .paper-explanation p, .paper-text { font-size: 10.5pt; line-height: 1.45; }
   .paper-figure-art img, .paper-figure .redraw-svg { max-height: 60mm; }
 }
+.redraw-verified { font-family: var(--font-sans), sans-serif; font-size: 11.5px; line-height: 1.4; color: #2f6b3c; }
