@@ -25,3 +25,8 @@
   .steps.four, .for-who { grid-template-columns: 1fr; }
   .hero h1 { font-size: 52px; }
 }
+
+.hero-mascot { margin: -12px 0 6px -6px; }
+.hero-mascot .mascot { animation: mascot-bob 3.2s ease-in-out infinite; transform-origin: 40% 90%; }
+@keyframes mascot-bob { 50% { transform: translateY(-5px) rotate(-3deg); } }
+@media (prefers-reduced-motion: reduce) { .hero-mascot .mascot { animation: none; } }

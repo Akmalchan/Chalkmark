@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import QRCode from "qrcode";
 import { useState } from "react";
 import { notesToMarkdown, slugify } from "@/lib/notes/export";
@@ -62,7 +62,7 @@ export function NotesActions({ doc, files, urls, onRestart, sharedUrl, markdown:
   return (
     <>
       <header className="notes-actions no-print app-chrome">
-        <Link className="wordmark" href="/"><span>CM</span> CHALKMARK</Link>
+        <Logo size="sm" />
         <div className="notes-actions-buttons">
           {error && <span className="action-error">{error}</span>}
           <button className="ghost" onClick={exportMarkdown}>Markdown</button>

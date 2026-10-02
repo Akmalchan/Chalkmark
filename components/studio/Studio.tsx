@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Logo } from "@/components/brand/Logo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { fullFrameQuad, insetQuad, type Quad } from "@/lib/board/geometry";
 import { DEFAULT_CONFIG, type EngineConfig } from "@/lib/board/engine";
@@ -262,7 +262,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
   return (
     <main className={`studio phase-${phase}`}>
       <header className="studio-bar app-chrome">
-        <Link className="wordmark" href="/"><span>CM</span> CHALKMARK</Link>
+        <Logo size="sm" />
         {phase === "setup" ? (
           <div className="source-switch" role="tablist">
             <button className={source === "file" ? "active" : ""} onClick={() => { stream.current?.getTracks().forEach(track => track.stop()); setSource("file"); setVideoSize({ width: 0, height: 0 }); }}>Recorded video</button>

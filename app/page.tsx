@@ -1,15 +1,17 @@
 import Link from "next/link";
+import { Logo, Mascot } from "@/components/brand/Logo";
 
 export default function Home() {
   return (
     <main className="landing-shell">
       <nav className="landing-nav">
-        <div className="wordmark"><span>CM</span> CHALKMARK</div>
+        <Logo size="md" />
         <div className="thesis"><i /> Board memory for every lecture</div>
       </nav>
 
       <section className="hero">
         <div className="hero-copy">
+          <div className="hero-mascot" aria-hidden="true"><Mascot size={96} /></div>
           <div className="hero-kicker">Lecture reconstruction, not recording</div>
           <h1>The board forgets.<br /><em>Your notes don’t.</em></h1>
           <p>Point any camera at the board. Chalkmark looks straight through the lecturer, saves every board the moment before it’s erased, and Gemini turns the ink — equations, graphs, even a sketch of a car — into clean, typeset notes.</p>

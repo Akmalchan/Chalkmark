@@ -2,14 +2,16 @@
   --font-sans: "Avenir Next", "Segoe UI", Helvetica, Arial, sans-serif;
   --font-serif: Iowan Old Style, Baskerville, "Times New Roman", serif;
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  --ink: #16221e;
-  --paper: #f4f1e9;
-  --white: #fffdf8;
-  --acid: #d8ff65;
-  --coral: #ff8b67;
+  /* Chalkmark brand: deep chalkboard green, cream paper, lime swoosh, orange star, sky sparkle. */
+  --ink: #183a2b;
+  --paper: #fbf6ea;
+  --white: #fffdf7;
+  --acid: #b9e45e;
+  --coral: #ff6b35;
+  --sky: #3ea2f2;
   --sage: #b9c9be;
-  --line: rgba(22, 34, 30, 0.16);
-  --muted: #65716b;
+  --line: rgba(24, 58, 43, 0.15);
+  --muted: #5f6f66;
 }
 
 * { box-sizing: border-box; }
@@ -261,3 +263,9 @@ svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width:
   .visual-heading strong { text-align: left; }
   .notes-footer { flex-direction: column; gap: 18px; text-align: center; }
 }
+
+/* ---------- Brand ---------- */
+.brand-logo { display: inline-flex; align-items: center; gap: 6px; color: #1b4430; text-decoration: none; }
+.brand-logo .mascot { flex: none; overflow: visible; }
+.brand-wordmark { font-family: var(--font-brand), "Avenir Next", sans-serif; font-weight: 700; letter-spacing: .015em; line-height: 1; color: #1b4430; }
+.brand-logo:hover .mascot { transform: rotate(-4deg); transition: transform .25s ease; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FigureRedraw } from "@/components/FigureRedraw";
+import { Mascot } from "@/components/brand/Logo";
 import { MathText, mathHtml } from "@/components/math";
 import { formatClock } from "@/lib/notes/assemble";
 import type { NoteBlock, NotesDoc } from "@/lib/notes/schema";
@@ -49,7 +50,7 @@ export function StudySheet({ doc, sheet, urls }: { doc: NotesDoc; sheet: Sheet; 
       {sheet.takeaways.length > 0 && (
         <aside className="sheet-takeaways"><b>Before the exam</b><ul>{sheet.takeaways.map((item, i) => <li key={i}><MathText text={item} /></li>)}</ul></aside>
       )}
-      <footer className="sheet-footer">Chalkmark study sheet · condensed from the board and the lecture{sheet.sections.some(s => s.example?.kind === "practice") ? " · “Practice” examples were written for you, not shown in class" : ""}</footer>
+      <footer className="sheet-footer"><Mascot size={14} title="" /> Chalkmark study sheet · condensed from the board and the lecture{sheet.sections.some(s => s.example?.kind === "practice") ? " · “Practice” examples were written for you, not shown in class" : ""}</footer>
     </article>
   );
 }
