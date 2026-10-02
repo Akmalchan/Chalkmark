@@ -3,6 +3,20 @@ import { Logo, Mascot } from "@/components/brand/Logo";
 import { EngineDemo } from "@/components/landing/EngineDemo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 
+const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
+/** Shown in the footer once filled in. */
+const LINKEDIN_URL = "";
+
+/**
+ * Vision tokens for the MIT 18.06SC recitation (995 s), measured with Gemini countTokens:
+ * whole video 299,791 (high) / 102,583 (default) minus audio at 32 tokens/s; Chalkmark's 9 boards × 2 images = 19,809.
+ */
+const VISION_TOKENS = [
+  { label: "Whole video · high res", tokens: 299_791 - 995 * 32, ours: false },
+  { label: "Whole video · default", tokens: 102_583 - 995 * 32, ours: false },
+  { label: "Chalkmark · 9 boards", tokens: 19_809, ours: true },
+];
+
 export default function Home() {
   return (
     <main className="landing-shell">
@@ -59,27 +73,25 @@ export default function Home() {
         <div className="tech-inner">
           <div className="tech-heading">
             <span className="tech-eyebrow">// results · measured, not claimed</span>
-            <h2>Checked against a hand-made answer key.</h2>
+            <h2>13× fewer tokens, checked against an answer key.</h2>
             <p>MIT 18.06SC recitation “Geometry of Linear Algebra”: 16 minutes, panning camera, chalkboard, 640×360.</p>
           </div>
           <div className="metrics">
-            <div><strong>14/15</strong><span>board items captured</span></div>
-            <div><strong>6/6</strong><span>core items: problem, solution, matrix form</span></div>
+            <div><strong>13×</strong><span>fewer vision tokens than the whole video at the same detail</span></div>
+            <div><strong>60×</strong><span>smaller upload: 403 KB of boards vs a 24 MB video</span></div>
+            <div><strong>14/15</strong><span>board items captured · all 6 core items</span></div>
             <div><strong>2/2</strong><span>figures pass the math check</span></div>
-            <div><strong>0 MB</strong><span>of video uploaded</span></div>
           </div>
           <div className="compare">
-            <div className="compare-row">
-              <span>Send the whole video</span>
-              <div className="compare-track"><i style={{ width: "100%" }} className="bad" /></div>
-              <strong>≈131k tokens</strong>
-            </div>
-            <div className="compare-row">
-              <span>Chalkmark, every call</span>
-              <div className="compare-track"><i style={{ width: `${(70 / 131) * 100}%` }} /></div>
-              <strong>70k tokens</strong>
-            </div>
-            <p className="compare-note">About half the tokens, counting every call (board reads, transcript, notes, redraws, study sheet), and the video baseline would still have the lecturer standing in front of the board. 57 seconds end-to-end.</p>
+            <div className="compare-head"><span>Vision tokens Gemini has to read · measured with countTokens</span></div>
+            {VISION_TOKENS.map(row => (
+              <div key={row.label} className="compare-row">
+                <span>{row.label}</span>
+                <div className="compare-track"><i style={{ width: `${(row.tokens / VISION_TOKENS[0].tokens) * 100}%` }} className={row.ours ? undefined : "bad"} /></div>
+                <strong className={row.ours ? "lime" : undefined}>{row.tokens.toLocaleString("en-US")}</strong>
+              </div>
+            ))}
+            <p className="compare-note">Same lecture, same model family. Chalkmark reads its boards at high resolution because handwriting needs it, so the fair comparison is the video at high resolution: 13.5× fewer. Even against the default low-detail video it is 3.6× fewer, and that video still has the lecturer standing in front of the board. Audio (≈32 tokens/s) is the same either way and excluded.</p>
           </div>
           <div className="stack" aria-label="Built with">
             {["Gemini · Vertex AI", "Gemma 4", "MediaPipe", "Cloud Run", "Firestore", "Cloud Storage", "WebCodecs", "KaTeX"].map(item => <span key={item}>{item}</span>)}
@@ -87,13 +99,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="for-who">
-        <div><h3>For students who can’t see the board</h3><p>Low vision, a bad seat, or a pillar in the way: the board comes to you, cleaned and readable.</p></div>
-        <div><h3>For anyone who can’t write that fast</h3><p>Listen and think during class. Every erased derivation is still in your notes.</p></div>
-        <div><h3>For learning in a second language</h3><p>Typeset math and a study sheet you can read at your own pace.</p></div>
-      </section>
-
-      <footer className="landing-footer"><span>Built at SF Hacks × GDG with Gemini on Google Cloud.</span><div><Link href="/studio?source=youtube">Only have a YouTube link? →</Link></div></footer>
+      <footer className="site-footer">
+        <div className="footer-brand">
+          <Logo size="sm" href={null} />
+          <span>Made with <b aria-label="love">♥</b> by Akmal at SF Hacks × GDG, with Gemini on Google Cloud.</span>
+        </div>
+        <nav className="footer-links" aria-label="Links">
+          <Link href="/studio?source=youtube">Only have a YouTube link? →</Link>
+          <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
+          {LINKEDIN_URL && <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">LinkedIn</a>}
+        </nav>
+      </footer>
     </main>
   );
 }
