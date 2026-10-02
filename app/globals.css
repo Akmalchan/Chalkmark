@@ -21,7 +21,7 @@ button, input { font: inherit; }
 button { color: inherit; }
 svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.landing-shell { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 88% 8%, rgba(216,255,101,.23), transparent 26%), var(--paper); }
+.landing-shell { min-height: 100vh; overflow-x: clip; background: radial-gradient(circle at 88% 8%, rgba(216,255,101,.23), transparent 26%), var(--paper); }
 .landing-nav, .notes-topbar { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(24px, 5vw, 76px); border-bottom: 1px solid var(--line); }
 .wordmark { display: flex; align-items: center; gap: 12px; border: 0; background: none; font-family: var(--font-mono), monospace; font-size: 13px; font-weight: 500; letter-spacing: .14em; cursor: pointer; }
 .wordmark span { width: 35px; height: 35px; display: grid; place-items: center; color: var(--acid); background: var(--ink); border-radius: 50%; font-size: 10px; letter-spacing: 0; }
