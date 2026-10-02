@@ -336,18 +336,29 @@ function seeded(seed: number) {
   };
 }
 
-/** The cell grid, with cells lighting up at random as they are judged. */
+/** The cell grid: irregular bunches of cells light up together, each rippling out from its centre, slowly. */
 function TrustArt() {
-  const COLS = 26, ROWS = 13, SIZE = 10, GAP = 3, X0 = 11, Y0 = 21;
-  const random = seeded(7);
+  const COLS = 26, ROWS = 13, SIZE = 10, GAP = 3, X0 = 11, Y0 = 21, PERIOD = 10;
+  const random = seeded(11);
+  // Seed points split the grid into irregular patches; each patch has its own moment and colour.
+  const seeds = Array.from({ length: 20 }, () => {
+    const roll = random();
+    return { c: random() * COLS, r: random() * ROWS, phase: random(), tone: roll < 0.14 ? "coral" : roll < 0.72 ? "lime" : null };
+  });
   return svg(<>
     {Array.from({ length: COLS * ROWS }, (_, i) => {
-      const roll = random(), duration = 3 + random() * 4, delay = random() * duration;
-      const tone = roll < 0.1 ? "coral" : roll < 0.8 ? "lime" : null;
+      const c = i % COLS, r = Math.floor(i / COLS);
+      let best = seeds[0], dist = Infinity;
+      for (const seed of seeds) {
+        const d = Math.hypot((c - seed.c) * 0.9, r - seed.r);
+        if (d < dist) { dist = d; best = seed; }
+      }
+      const props = { x: X0 + c * (SIZE + GAP), y: Y0 + r * (SIZE + GAP), width: SIZE, height: SIZE, rx: 2.5 };
+      if (!best.tone || dist > 3.6) return <rect key={i} {...props} className="pa-cell" />;
+      const phase = (best.phase + dist * 0.035) % 1;
       return (
-        <rect key={i} x={X0 + (i % COLS) * (SIZE + GAP)} y={Y0 + Math.floor(i / COLS) * (SIZE + GAP)} width={SIZE} height={SIZE} rx="2.5"
-          className={tone ? `pa-shine ${tone}` : "pa-cell"}
-          style={tone ? { animationDuration: `${duration.toFixed(2)}s`, animationDelay: `-${delay.toFixed(2)}s` } : undefined} />
+        <rect key={i} {...props} className={`pa-shine ${best.tone}`}
+          style={{ animationDuration: `${PERIOD}s`, animationDelay: `-${(phase * PERIOD).toFixed(2)}s` }} />
       );
     })}
   </>);

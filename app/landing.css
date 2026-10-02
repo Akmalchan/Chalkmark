@@ -321,8 +321,8 @@
 @keyframes pa-blink { 50% { opacity: .35; } }
 
 /* 03: cells lighting up at random */
-.pa-shine { fill: rgba(255,255,255,.06); animation: pa-shine-lime 5s ease-in-out infinite; }
+.pa-shine { fill: rgba(255,255,255,.06); animation: pa-shine-lime 10s ease-in-out infinite; }
 .pa-shine.coral { animation-name: pa-shine-coral; }
-@keyframes pa-shine-lime { 0%, 62%, 100% { fill: rgba(255,255,255,.06); } 76% { fill: #c8f06e; } 86% { fill: rgba(185,228,94,.45); } }
-@keyframes pa-shine-coral { 0%, 62%, 100% { fill: rgba(255,255,255,.06); } 76% { fill: #ff6b35; } 86% { fill: rgba(255,107,53,.4); } }
+@keyframes pa-shine-lime { 0%, 55%, 100% { fill: rgba(255,255,255,.06); } 70% { fill: #c8f06e; } 78% { fill: #b9e45e; } 92% { fill: rgba(185,228,94,.25); } }
+@keyframes pa-shine-coral { 0%, 55%, 100% { fill: rgba(255,255,255,.06); } 70% { fill: #ff8a5c; } 78% { fill: #ff6b35; } 92% { fill: rgba(255,107,53,.25); } }
 @media (prefers-reduced-motion: reduce) { .pa-shine { animation: none; } .pa-shine.lime:nth-child(3n) { fill: rgba(185,228,94,.6); } }
