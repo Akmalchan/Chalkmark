@@ -21,6 +21,7 @@ const requestSchema = z.object({
   })).max(40),
   transcript: z.string().max(60_000),
   subject: z.string().optional(),
+  durationSeconds: z.number().nonnegative().optional(),
 });
 
 /** A board line cut off mid-derivation ("⇒ 5y − 2 = 3 ⇒ x =") is not a formula worth printing. */
@@ -61,11 +62,13 @@ export async function POST(request: Request) {
     const exercises = detectExercises(body.sections.flatMap(section => section.blocks));
     const exerciseRule = exercises.length
       ? `The lecture works exactly ${exercises.length} exercise${exercises.length > 1 ? "s" : ""}:\n${exercises.map((e, i) => `${i + 1}. ${e}`).join("\n")}\nGive exactly one worked example (kind "lecture") per exercise above, with the numbers from the board — no other examples, and never the same exercise twice (show its other views as bullets).`
-      : "The lecture works no explicit exercise. You may add at most two short practice examples (kind \"practice\").";
+      : "No exercise was detected on the board. Give each main idea a short worked example: if the notes show one the lecturer worked (even informally, e.g. \"is R = {…} a function?\"), use it with its numbers as kind \"lecture\"; otherwise write a short one yourself as kind \"practice\".";
     // The board's own formulas, listed separately so the sheet copies them instead of writing generic ones.
     const boardFormulas = body.sections.flatMap(section => section.blocks.filter(block => block.kind === "equation" && !unfinished(block.content)).map(block => `- (${section.title}) ${block.content}`));
     // Longer lectures get a longer sheet (still ruthless): 1–2 pages normally, up to 3 for a big lecture.
-    const size = body.sections.length + Math.floor(body.sections.reduce((n, section) => n + section.blocks.length, 0) / 12);
+    // A long lecture deserves a longer sheet even when the board was sparse: 25+ min → two pages, 60+ → three.
+    const minutes = (body.durationSeconds ?? 0) / 60;
+    const size = Math.max(body.sections.length + Math.floor(body.sections.reduce((n, section) => n + section.blocks.length, 0) / 12), minutes >= 60 ? 10 : minutes >= 25 ? 6 : 0);
     const length = size <= 5 ? { words: "300-450", pages: "one to two pages", sections: 6 } : size <= 9 ? { words: "450-650", pages: "two pages", sections: 8 } : { words: "650-900", pages: "up to three pages", sections: 10 };
     const prompt = [`Lecture: ${body.title} (${body.course})`, body.summary, `LENGTH: around ${length.words} words in total (${length.pages}), at most ${length.sections} sections.`, exerciseRule, "NOTES:", notes,
       boardFormulas.length ? `BOARD FORMULAS:\n${boardFormulas.join("\n")}` : "",

@@ -58,6 +58,7 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
           })),
           transcript: transcriptText(doc.transcript, -Infinity, Infinity, 30_000),
           subject: doc.subject ?? "auto",
+          durationSeconds: doc.stats?.durationSeconds ?? 0,
         }),
       });
       const payload = await response.json();

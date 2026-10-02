@@ -159,7 +159,7 @@ async function studySheet(doc: NotesDoc): Promise<StudySheet | null> {
   status("condensing a study sheet");
   try {
     const { sheet } = await api<{ sheet: StudySheet }>("/api/sheet", {
-      title: doc.title, course: doc.course, summary: doc.summary, subject: doc.subject ?? "auto", transcript: "",
+      title: doc.title, course: doc.course, summary: doc.summary, subject: doc.subject ?? "auto", transcript: "", durationSeconds: doc.stats?.durationSeconds ?? 0,
       sections: doc.sections.map(section => ({ title: section.title, explanation: section.explanation, takeaways: section.takeaways, blocks: section.blocks.map(({ id, kind, content, detail }) => ({ id, kind, content, detail })) })),
     });
     return sheet;
