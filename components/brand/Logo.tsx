@@ -15,25 +15,30 @@ function starPath(cx: number, cy: number, outer: number, inner: number) {
   return `M${points.join("L")}Z`;
 }
 
-/** The Chalkmark mascot: a happy stick of chalk riding a lime swoosh up to a checked star. */
-export function Mascot({ size = 48, title = "Chalkmark" }: { size?: number; title?: string }) {
+/**
+ * The Chalkmark mascot: a happy stick of chalk riding a lime swoosh up to a checked star.
+ * `animated` (landing hero): the swoosh draws itself, the star pops, the chalk bobs and waves.
+ */
+export function Mascot({ size = 48, title = "Chalkmark", animated = false }: { size?: number; title?: string; animated?: boolean }) {
   return (
     // Inline size + no inherited stroke: the legacy global `svg` rule (20px icons) must not apply here.
-    <svg viewBox="0 0 128 100" width={size * 1.28} height={size} style={{ width: size * 1.28, height: size, stroke: "none", fill: "none" }} role="img" aria-label={title || undefined} aria-hidden={title ? undefined : true} className="mascot">
+    <svg viewBox="0 0 128 100" width={size * 1.28} height={size} style={{ width: size * 1.28, height: size, stroke: "none", fill: "none" }} role="img" aria-label={title || undefined} aria-hidden={title ? undefined : true} className={`mascot${animated ? " mascot-animated" : ""}`}>
       {/* swoosh */}
-      <path d="M10 88 C 40 99, 76 88, 94 44" fill="none" stroke={LIME} strokeWidth="7" strokeLinecap="round" />
-      <path d="M86 44 L97 36 L99 50 Z" fill={LIME} stroke={LIME} strokeWidth="3" strokeLinejoin="round" />
+      <path className="m-swoosh" d="M10 88 C 40 99, 76 88, 94 44" fill="none" stroke={LIME} strokeWidth="7" strokeLinecap="round" pathLength={100} />
+      <path className="m-arrowhead" d="M86 44 L97 36 L99 50 Z" fill={LIME} stroke={LIME} strokeWidth="3" strokeLinejoin="round" />
       <circle cx="7" cy="80" r="2.4" fill={LIME} /><circle cx="15" cy="96" r="1.8" fill={LIME} />
       {/* star with a check */}
-      <path d={starPath(106, 24, 15, 7.2)} fill={ORANGE} stroke="#ff8a4c" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M100 24.5 L104.5 29 L112.5 19.5" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-      <g stroke={ORANGE} strokeWidth="2.6" strokeLinecap="round">
+      <g className="m-star">
+        <path d={starPath(106, 24, 15, 7.2)} fill={ORANGE} stroke="#ff8a4c" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M100 24.5 L104.5 29 L112.5 19.5" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <g className="m-sparks" stroke={ORANGE} strokeWidth="2.6" strokeLinecap="round">
         <path d="M89 12 L92 15" /><path d="M118 5 L115 9" /><path d="M123 27 L119 27" />
       </g>
       {/* sparkle */}
-      <g stroke={SKY} strokeWidth="3" strokeLinecap="round"><path d="M14 30 L19 37" /><path d="M8 43 L16 45" /></g>
+      <g className="m-sparkle" stroke={SKY} strokeWidth="3" strokeLinecap="round"><path d="M14 30 L19 37" /><path d="M8 43 L16 45" /></g>
       {/* chalk body, tilted */}
-      <g transform="rotate(16 48 56)">
+      <g className="m-body"><g transform="rotate(16 48 56)">
         <rect x="31" y="20" width="34" height="68" rx="13" fill="#f6f2e6" stroke={GREEN} strokeWidth="4" />
         <ellipse cx="48" cy="25" rx="13" ry="4.6" fill="#fdfbf4" stroke={GREEN} strokeWidth="2" />
         <path d="M37 80 Q48 86 59 80" fill="none" stroke="#e1dccb" strokeWidth="3" strokeLinecap="round" />
@@ -47,9 +52,9 @@ export function Mascot({ size = 48, title = "Chalkmark" }: { size?: number; titl
         {/* arms: one waving */}
         <g fill="none" stroke={GREEN} strokeWidth="3.6" strokeLinecap="round">
           <path d="M31.5 56 Q24 58 25 66" />
-          <path d="M64.5 50 Q72 49 73 40" />
+          <path className="m-wave" d="M64.5 50 Q72 49 73 40" />
         </g>
-      </g>
+      </g></g>
     </svg>
   );
 }

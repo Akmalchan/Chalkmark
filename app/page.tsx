@@ -40,7 +40,16 @@ export default function Home() {
 
       <section className="hero">
         <div className="hero-copy">
-          <div className="hero-mascot" aria-hidden="true"><Mascot size={96} /></div>
+          <div className="hero-brand">
+            <Mascot size={150} animated title="" />
+            <div className="hero-brand-text">
+              <span className="hero-wordmark">CHALKMARK</span>
+              <svg className="hero-underline" viewBox="0 0 400 24" preserveAspectRatio="none" aria-hidden="true" style={{ width: "100%", height: 18, stroke: "none", fill: "none" }}>
+                <path d="M4 15 C 70 6, 150 20, 230 11 S 350 6, 396 13" pathLength={100} />
+              </svg>
+              <span className="hero-tagline">lecture boards → clean notes</span>
+            </div>
+          </div>
           <div className="hero-kicker">Lecture reconstruction, not recording<a className="oss-pill" href={GITHUB_URL} target="_blank" rel="noreferrer">open source</a></div>
           <h1>The board forgets.<br /><em>Your notes don’t.</em></h1>
           <p>Point any camera at the board. Chalkmark looks straight through the lecturer, saves every board the moment before it’s erased, and Gemini turns the ink — equations, graphs, even a sketch of a car — into a clean one-page study sheet.</p>
