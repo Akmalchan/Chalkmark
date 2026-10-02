@@ -225,3 +225,28 @@
 }
 .print-root .sheet, .print-root .paper, .print-root .sheet-page { background: #fff !important; }
 html:has(.print-root), body:has(.print-root) { background: #fff !important; }
+
+/* ---------- Paged study sheet: real Letter / A4 pages, two explicit columns (components/PagedSheet.tsx) ---------- */
+.paged-sheet { display: flex; flex-direction: column; align-items: center; gap: 22px; margin: 18px auto 0; padding: 0 12px 34px; }
+.paged-measure { position: absolute; left: -20000px; top: 0; visibility: hidden; pointer-events: none; }
+.paged-measure .sheet, .paged-page.sheet { font-size: calc(12.8px * var(--sheet-scale)); line-height: 1.34; }
+.paged-measure .sheet { width: var(--content-w); max-width: none; padding: 0; margin: 0; border: 0; box-shadow: none; }
+.paged-measure .sheet-columns { column-count: 1 !important; width: var(--column-w); }
+.paged-measure .sheet-footer { display: none; }
+.paged-page-slot { flex: none; }
+.paged-page.sheet { box-sizing: border-box; width: var(--page-w); height: var(--page-h); max-width: none; margin: 0; padding: var(--margin-y) var(--margin-x); display: flex; flex-direction: column; overflow: hidden; background: #fff; border: 1px solid #e6e1d4; box-shadow: 0 24px 60px rgba(22, 34, 30, .1); }
+.paged-header .sheet-header { margin-bottom: 10px; }
+.paged-columns { position: relative; display: grid; grid-template-columns: var(--column-w) var(--column-w); column-gap: var(--column-gap); align-items: start; }
+.paged-columns::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px solid #ece8de; }
+.paged-column { min-width: 0; }
+.paged-takeaways .sheet-takeaways { margin-top: 4px; }
+.paged-footer { margin-top: auto; padding-top: 6px; display: flex; justify-content: space-between; align-items: flex-end; font-family: var(--font-sans), sans-serif; font-size: 9px; color: #8a948f; }
+.paged-footer span:first-child { display: inline-flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.paged-sheet .sheet-formula, .paged-sheet .sheet-example { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+@media print {
+  .paged-sheet { display: block; margin: 0; padding: 0; gap: 0; }
+  .paged-measure { display: none; }
+  .paged-page-slot { width: auto !important; height: auto !important; }
+  .paged-page.sheet { zoom: 1 !important; border: 0; box-shadow: none; break-after: page; }
+  .paged-page-slot:last-child .paged-page { break-after: auto; }
+}

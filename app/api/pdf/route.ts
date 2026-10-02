@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     // The print page is served by this same server; inside Cloud Run that is localhost.
     const origin = process.env.NODE_ENV === "production" ? `http://127.0.0.1:${process.env.PORT || 8080}` : new URL(request.url).origin;
     const title = String(body.doc.title || "Lecture notes");
-    const pdf = await renderPdf(origin, { view, paper, doc: body.doc, urls: body.urls ?? {} }, paper, title);
+    const pdf = await renderPdf(origin, { view, paper, doc: body.doc, urls: body.urls ?? {} }, paper, title, view === "sheet");
     const name = `${slugify(title) || "chalkmark"}${view === "sheet" ? "-study-sheet" : "-notes"}-${paper.toLowerCase()}.pdf`;
     return new NextResponse(Buffer.from(pdf), { headers: { "content-type": "application/pdf", "content-disposition": `inline; filename="${name}"`, "cache-control": "no-store" } });
   } catch (error) {

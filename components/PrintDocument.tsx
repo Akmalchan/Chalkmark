@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { NotesPaper } from "@/components/NotesPaper";
-import { StudySheet } from "@/components/StudySheet";
+import { PagedSheet } from "@/components/PagedSheet";
 import type { NotesDoc } from "@/lib/notes/schema";
 
 type Payload = { view: "sheet" | "full"; paper: "Letter" | "A4"; doc: NotesDoc; urls: Record<string, string> };
@@ -27,6 +27,9 @@ export function PrintDocument() {
     let cancelled = false;
     void (async () => {
       await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // The study sheet lays itself out on pages after measuring: wait for those pages.
+      for (let i = 0; i < 100 && payload.view === "sheet" && !document.querySelector(".paged-page"); i += 1) await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 150));
       await Promise.all([...document.images].map(image => image.complete ? Promise.resolve() : image.decode().catch(() => {})));
       await document.fonts.ready;
       if (!cancelled) (window as unknown as { __printReady?: boolean }).__printReady = true;
@@ -39,7 +42,7 @@ export function PrintDocument() {
   return (
     <main className={`print-root print-${view} paper-${paper.toLowerCase()}`}>
       {view === "sheet" && doc.sheet
-        ? <div className={`sheet-page paper-${paper.toLowerCase()}`}><StudySheet doc={doc} sheet={doc.sheet} urls={urls} /></div>
+        ? <><style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: 0; }`}</style><PagedSheet doc={doc} sheet={doc.sheet} urls={urls} paper={paper} /></>
         : <NotesPaper doc={doc} urls={urls} />}
     </main>
   );

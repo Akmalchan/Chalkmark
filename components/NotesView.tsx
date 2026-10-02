@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NotesPaper } from "@/components/NotesPaper";
-import { StudySheet } from "@/components/StudySheet";
+import { PagedSheet } from "@/components/PagedSheet";
 import { NotesActions } from "@/components/studio/NotesActions";
 import { transcriptText } from "@/lib/notes/assemble";
 import { sheetToMarkdown } from "@/lib/notes/export";
@@ -111,7 +111,7 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
 
   return (
     <main className="studio-done">
-      <style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: 12mm 13mm; }`}</style>
+      <style>{`@page { size: ${paper === "A4" ? "A4" : "letter"}; margin: ${view === "sheet" && sheet ? "0" : "12mm 13mm"}; }`}</style>
       <NotesActions doc={current} files={files} urls={urls} sharedUrl={sharedUrl} onRestart={onRestart}
         markdown={view === "sheet" && sheet ? () => sheetToMarkdown(current, sheet) : undefined} />
       <div className="view-bar no-print">
@@ -140,7 +140,7 @@ export function NotesView({ doc, urls, files, sharedUrl, onRestart, banner }: Pr
             : <div className="sheet-pending"><span className="spinner" /><p>Laying out {paper === "A4" ? "A4" : "US Letter"} pages…</p></div>}
         </div>
       ) : view === "full" ? <NotesPaper doc={doc} urls={urls} /> : sheet ? (
-        <div className={`sheet-page paper-${paper.toLowerCase()}`}><StudySheet doc={doc} sheet={sheet} urls={urls} /></div>
+        <PagedSheet doc={doc} sheet={sheet} urls={urls} paper={paper} />
       ) : (
         <div className="sheet-pending no-print">
           {sheetError

@@ -30,13 +30,15 @@ async function getBrowser(): Promise<Browser> {
 
 const escapeHtml = (text: string) => text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-export async function renderPdf(origin: string, payload: unknown, paper: PaperSize, title: string): Promise<Uint8Array> {
+/** `paged`: the document lays out its own pages (study sheet): no margins, no footer, page size from CSS. */
+export async function renderPdf(origin: string, payload: unknown, paper: PaperSize, title: string, paged = false): Promise<Uint8Array> {
   const page = await (await getBrowser()).newPage();
   try {
     await page.evaluateOnNewDocument((data: unknown) => { (window as unknown as { __CHALKMARK_PRINT__: unknown }).__CHALKMARK_PRINT__ = data; }, payload);
     await page.goto(`${origin}/print`, { waitUntil: "networkidle0", timeout: 45_000 });
     await page.waitForFunction("window.__printReady === true", { timeout: 20_000 });
     await page.evaluate("document.fonts.ready");
+    if (paged) return await page.pdf({ format: paper, printBackground: true, preferCSSPageSize: true, margin: { top: 0, bottom: 0, left: 0, right: 0 } });
     return await page.pdf({
       format: paper,
       printBackground: true,
