@@ -24,7 +24,14 @@ const requestSchema = z.object({
 });
 
 /** A board line cut off mid-derivation ("⇒ 5y − 2 = 3 ⇒ x =") is not a formula worth printing. */
-const unfinished = (latex: string) => /(=|\\Rightarrow|\\implies|\\to|[+\-*\/,])\s*$/.test(latex.trim());
+const unfinished = (latex: string) => {
+  const text = latex.trim();
+  if (/(=|\\Rightarrow|\\implies|\\to|[+\-*\/,])\s*$/.test(text)) return true;
+  // A garbled or cut-off read: brackets that do not balance (escaped \{ \} and \left/\right pairs ignored).
+  const plain = text.replace(/\\[{}]/g, "").replace(/\\(left|right)[.()[\]|]/g, "");
+  const count = (c: string) => plain.split(c).length - 1;
+  return count("(") !== count(")") || count("{") !== count("}") || count("[") !== count("]");
+};
 
 const instructions = `You write a short printable study sheet from a lecture's notes, the way a top student condenses a lecture before an exam.
 
@@ -32,6 +39,7 @@ const instructions = `You write a short printable study sheet from a lecture's n
 - Write like student notes: short bullets, arrows (→), abbreviations where natural, no full paragraphs, no "the lecturer explains".
 - Formulas: only the key ones, in KaTeX LaTeX. Any math inside bullets, steps or takeaways goes between $…$ (e.g. "solved via $x = A^{-1}b$"), never bare.
 - Formulas come from the board: copy them from the BOARD FORMULAS list (verbatim LaTeX, numbers included), preferring the ones with concrete numbers over general forms. Each section shows the board's own concrete formula for its idea (e.g. the actual vector equation, the actual matrix $A$).
+- Every formula must be mathematically correct. If a board formula is clearly a misreading or slip (e.g. "D^2 = \\sqrt{(x_2-x_1)^2+(y_2-y_1)^2}"), write the correct standard form instead and end its label with "(corrected)". Never print a formula you believe is wrong.
 - Be concrete, not generic: when the board writes specific objects (a matrix, vectors, values, a solution), show those exact objects — e.g. the actual $A$ and $b$, the actual vectors and the weights that solve it — instead of general statements like "analogous to scalar algebra". Keep the board's own notation and capitalisation.
 - Count the distinct exercises actually worked in the lecture. Give each one exactly once, in the section where it belongs — never repeat the same problem as a second "example" in another section (if one problem is viewed several ways, show it once and mention the other views in bullets).
 - Give each main idea a worked example. Prefer the lecture's own example (kind "lecture"), with the actual numbers from the board. If the lecture has no example for an important idea, write a short one yourself and mark it kind "practice".
