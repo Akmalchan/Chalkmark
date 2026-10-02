@@ -378,3 +378,20 @@
 .copy-command button { flex: none; padding: 5px 10px; border: 1px solid rgba(185,228,94,.4); border-radius: 6px; background: transparent; color: var(--acid); font-family: var(--font-mono), monospace; font-size: 11px; cursor: pointer; }
 .copy-command button:hover { background: rgba(185,228,94,.1); }
 @media (max-width: 1000px) { .opensource-inner { grid-template-columns: 1fr; } }
+
+/* ---------- CLI ---------- */
+.cli-inner { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 44px; align-items: center; }
+.cli-copy p { max-width: 520px; margin: 0; color: #c4d1c9; font-size: 16px; line-height: 1.6; }
+.cli-commands { margin-top: 24px; display: flex; flex-direction: column; gap: 8px; }
+.terminal { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: #050c08; box-shadow: 0 30px 70px rgba(0,0,0,.4), 0 0 0 1px rgba(185,228,94,.06); overflow: hidden; }
+.terminal-bar { display: flex; align-items: center; gap: 7px; padding: 11px 14px; background: #0f1a14; border-bottom: 1px solid rgba(255,255,255,.07); }
+.terminal-bar i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; }
+.terminal-bar i:nth-child(2) { background: #febc2e; } .terminal-bar i:nth-child(3) { background: #28c840; }
+.terminal-bar span { margin-left: 10px; font-family: var(--font-mono), monospace; font-size: 11.5px; color: #7f9187; }
+.terminal-body { min-height: 420px; padding: 16px 18px 20px; font-family: var(--font-mono), monospace; font-size: 12.8px; line-height: 1.65; color: #dfe8e2; overflow-x: auto; }
+.term-line { white-space: pre; }
+.term-prompt { color: #3ea2f2; }
+.term-lime { color: #b9e45e; } .term-dim { color: #7f9187; } .term-coral { color: #ff8a5c; } .term-bold { color: #ffffff; font-weight: 700; }
+.term-caret { display: inline-block; width: 8px; height: 15px; margin-left: 2px; vertical-align: -2px; background: #b9e45e; animation: term-blink 1s steps(1) infinite; }
+@keyframes term-blink { 50% { opacity: 0; } }
+@media (max-width: 1000px) { .cli-inner { grid-template-columns: 1fr; } .terminal-body { min-height: 360px; font-size: 11.5px; } }

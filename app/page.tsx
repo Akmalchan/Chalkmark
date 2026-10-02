@@ -4,6 +4,7 @@ import { EngineDemo } from "@/components/landing/EngineDemo";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { Partners } from "@/components/landing/Partners";
 import { CopyCommand } from "@/components/landing/CopyCommand";
+import { TerminalDemo } from "@/components/landing/TerminalDemo";
 
 const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
 const LINKEDIN_URL = "https://www.linkedin.com/in/ashovkatov";
@@ -27,6 +28,7 @@ export default function Home() {
           <a href="#demo">Live engine</a>
           <a href="#how">How it works</a>
           <a href="#results">Results</a>
+          <a href="#cli">CLI</a>
           <a href="#open-source">Open source</a>
         </nav>
         <div className="nav-actions">
@@ -103,20 +105,36 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="tech cli-section" id="cli">
+        <div className="tech-inner cli-inner">
+          <div className="cli-copy">
+            <span className="tech-eyebrow">// cli · try it in your terminal</span>
+            <h2>Prefer the terminal? So do we.</h2>
+            <p>The same board engine runs on your machine. ffmpeg decodes the video locally, the engine saves every board before it&apos;s erased, and only those images go to Gemini. A 16-minute lecture scans in about 10 seconds and becomes notes in under a minute.</p>
+            <div className="cli-commands">
+              <CopyCommand command="npm install && npm link" />
+              <CopyCommand command="chalkmark scan lecture.mp4" />
+              <CopyCommand command="chalkmark board whiteboard.jpg" />
+              <CopyCommand command="chalkmark youtube <url> --subject cs" />
+            </div>
+          </div>
+          <TerminalDemo />
+        </div>
+      </section>
+
       <section className="tech opensource" id="open-source">
         <div className="tech-inner opensource-inner">
           <div>
             <span className="tech-eyebrow">// open source</span>
             <h2>Read every line. Run it yourself.</h2>
-            <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Run the board engine from your terminal with the CLI, host your own copy, or put it on Cloud Run with one script.</p>
+            <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Clone it, run it with your own Gemini key, or put it on Cloud Run with one script.</p>
             <div className="opensource-actions">
               <a className="cta big primary" href={GITHUB_URL} target="_blank" rel="noreferrer">View on GitHub<span>Akmalchan/Chalkmark</span></a>
             </div>
           </div>
           <div className="opensource-terminal">
             <CopyCommand command={`git clone ${GITHUB_URL}`} />
-            <CopyCommand command="npm install && npm link" />
-            <CopyCommand command="chalkmark scan lecture.mp4" />
+            <CopyCommand command="npm install && npm run dev" />
             <CopyCommand command="PROJECT=my-project ./scripts/deploy-cloud-run.sh" />
           </div>
         </div>
