@@ -95,7 +95,9 @@ export class ModelChainError extends Error {
 const cooldownUntil = new Map<string, number>();
 function coolDown(id: string, error: unknown) {
   const status = statusOf(error);
-  const seconds = status === 429 ? 90 : status === 503 || status === 500 ? 25 : 0;
+  // A spent daily quota will not come back in a minute: skip that model for a good while.
+  const quota = status === 429 && error instanceof Error && /quota/i.test(error.message);
+  const seconds = quota ? 15 * 60 : status === 429 ? 90 : status === 503 || status === 500 ? 25 : 0;
   if (seconds) cooldownUntil.set(id, Date.now() + seconds * 1000);
 }
 

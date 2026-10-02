@@ -54,6 +54,8 @@ export class LectureSession {
   readonly models = new Set<string>();
   private readonly startedAt = performance.now();
   private readonly pending = new Set<Promise<unknown>>();
+  /** Board images still being rendered (kept apart from slower work such as transcription). */
+  private readonly snapshotJobs = new Set<Promise<unknown>>();
   private readonly paperImages = new Map<string, RGBAImage>();
   private readonly masks = new Map<string, InkMask>();
   private readonly blobs = new Map<string, { paper: Blob; raw: Blob }>();
@@ -78,14 +80,14 @@ export class LectureSession {
     const report = this.engine.ingest(frame, t, personMask);
     this.framesAnalyzed += 1;
     this.durationSeconds = Math.max(this.durationSeconds, t);
-    if (report.snapshot) this.track(this.handleSnapshot(report.snapshot));
+    if (report.snapshot) this.trackSnapshot(this.handleSnapshot(report.snapshot));
     return report;
   }
 
   /** Save the current board right now (e.g. the lecturer is about to slide the board away). */
   captureNow() {
     const snapshot = this.engine.flush("manual");
-    if (snapshot) this.track(this.handleSnapshot(snapshot));
+    if (snapshot) this.trackSnapshot(this.handleSnapshot(snapshot));
     return Boolean(snapshot);
   }
 
@@ -103,6 +105,12 @@ export class LectureSession {
       .catch(error => { this.warnings.push(`Part of the audio (from ${Math.round(offsetSeconds)}s) could not be transcribed: ${error.message}`); this.emit(); });
     this.track(job);
     return job;
+  }
+
+  private trackSnapshot<T>(promise: Promise<T>) {
+    this.snapshotJobs.add(promise);
+    promise.finally(() => this.snapshotJobs.delete(promise));
+    return this.track(promise);
   }
 
   private track<T>(promise: Promise<T>) {
@@ -259,13 +267,18 @@ export class LectureSession {
 
   /* ---------- finishing ---------- */
 
-  async finish(onStage?: (label: string) => void): Promise<NotesDoc> {
+  /**
+   * `background`: work still running elsewhere (e.g. audio extraction + transcription). Boards are
+   * read in parallel with it; only the notes composition waits for the speech.
+   */
+  async finish(onStage?: (label: string) => void, background?: Promise<unknown>): Promise<NotesDoc> {
     onStage?.("Saving the last board state");
     const last = this.engine.flush("final");
-    if (last) await this.track(this.handleSnapshot(last));
+    if (last) await this.trackSnapshot(this.handleSnapshot(last));
+    while (this.snapshotJobs.size) await Promise.allSettled([...this.snapshotJobs]);
     onStage?.("Reading every board with Gemini");
-    while (this.pending.size) await Promise.allSettled([...this.pending]);
     await this.pruneAndReadQueued();
+    if (background) { onStage?.("Finishing the speech transcript"); await background; }
     while (this.pending.size) await Promise.allSettled([...this.pending]);
     for (const board of this.boards) if (board.status === "error") board.blocks.length = 0;
     this.paperImages.clear();

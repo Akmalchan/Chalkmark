@@ -55,7 +55,8 @@ export async function POST(request: Request) {
         // normalise leniently, keeping every usable shape instead of rejecting the whole figure.
         output: Output.json(),
         providerOptions: providerOptions(meta.provider, { mediaResolution: "MEDIA_RESOLUTION_HIGH", thinkingConfig: { thinkingLevel: "medium" } }),
-        maxRetries: 1,
+        // No SDK retries: the model chain moves to the next model and cools this one down.
+        maxRetries: 0,
         timeout: { totalMs: 70_000 },
       });
       const spec = normalizeFigureSpec(response.output);

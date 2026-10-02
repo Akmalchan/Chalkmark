@@ -35,7 +35,8 @@ export async function POST(request: Request) {
           ...(meta.provider === "vertex" ? { audioTimestamp: true } : {}),
           thinkingConfig: { thinkingLevel: "low" },
         }),
-        maxRetries: 1,
+        // No SDK retries: the model chain moves to the next model and cools this one down.
+        maxRetries: 0,
         timeout: { totalMs: 240_000 },
       });
       return { segments: response.output.segments, usage: usageOf(response.usage) };

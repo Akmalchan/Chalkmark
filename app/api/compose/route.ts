@@ -56,7 +56,8 @@ export async function POST(request: Request) {
         prompt,
         output: Output.object({ schema: composeSchema }),
         providerOptions: providerOptions(meta.provider, { thinkingConfig: { thinkingLevel: "low" } }),
-        maxRetries: 1,
+        // No SDK retries: the model chain moves to the next model and cools this one down.
+        maxRetries: 0,
         timeout: { totalMs: 120_000 },
       });
       return { composition: response.output, usage: usageOf(response.usage) };

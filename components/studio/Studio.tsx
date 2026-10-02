@@ -134,9 +134,8 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
     setPhase("finishing");
     setStage("Saving the last board state");
     await recorder.current?.stop();
-    if (audioJob.current) { setStage("Transcribing speech"); await audioJob.current; }
     stream.current?.getTracks().forEach(track => track.stop());
-    const notes = await active.finish(setStage);
+    const notes = await active.finish(setStage, audioJob.current ?? undefined);
     const map: Record<string, string> = {};
     for (const [name, blob] of active.files) map[name] = URL.createObjectURL(blob);
     setUrls(map);

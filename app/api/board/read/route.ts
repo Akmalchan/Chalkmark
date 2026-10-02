@@ -49,7 +49,8 @@ export async function POST(request: Request) {
         messages: [{ role: "user", content }],
         output: Output.object({ schema: boardReadSchema }),
         providerOptions: providerOptions(meta.provider, { mediaResolution: "MEDIA_RESOLUTION_HIGH", thinkingConfig: { thinkingLevel: "low" } }),
-        maxRetries: 1,
+        // No SDK retries: the model chain moves to the next model and cools this one down.
+        maxRetries: 0,
         timeout: { totalMs: 60_000 },
       });
       return { read: response.output, usage: usageOf(response.usage) };
