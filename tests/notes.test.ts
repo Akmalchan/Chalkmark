@@ -259,3 +259,26 @@ test("data structures are normalized from loose JSON: aliases, null nodes and da
   assert.deepEqual(hash?.structure?.buckets, [{ key: "0", items: ["20", "40"] }, { key: "1", items: [] }]);
   assert.equal(normalizeFigureSpec({ kind: "structure", structure: { type: "stack", cells: [] } }), null);
 });
+
+test("a figure's own caption beats other lines of the lecture, and marked points block wrong snaps", async () => {
+  const { boardFacts, checkFigure } = await import("../lib/notes/figure-check");
+  const { compileExpression } = await import("../lib/plot-math");
+  // A real precalculus lecture: the board graphs y = ½x − 2 at 16:05; 4x + 2y = 3 is a different exercise at 22:05.
+  const facts = boardFacts(["Write $4x + 2y = 3$ in slope-intercept form", "Find the line through $(6,7)$ perpendicular to $2x + 3y = 12$"]);
+  assert.equal(facts.lines.length, 2);
+  assert.equal(boardFacts(["Graph of $y = \\frac{1}{2}x - 2$"]).lines.length, 1, "slope-intercept with a fraction is parsed");
+  const base = { kind: "plot" as const, sketch: null, confidence: "high" as const, notes: null };
+  const points = [{ at: { x: 0, y: -2 }, label: "(0, -2)", color: "ink" as const }, { at: { x: 2, y: -1 }, label: "(2, -1)", color: "ink" as const }];
+  const plot = (label: string, expression: string) => ({ ...base, plot: { xMin: -2, xMax: 10, yMin: -5, yMax: 5, xLabel: "x", yLabel: "y", grid: false, arrows: [], segments: [], labels: [], points,
+    curves: [{ label, expression, points: [], color: "ink" as const, dashed: false }] } });
+
+  // Drawn as the other exercise's line: the caption names y = ½x − 2, so the line is fixed to it.
+  const wrong = checkFigure(plot("4x+2y=3", "1.5 - 2*x"), facts, compileExpression, boardFacts(["Graph of $y = \\frac{1}{2}x - 2$"]));
+  const fixed = compileExpression(wrong.spec.plot!.curves[0].expression!);
+  assert.ok(Math.abs(fixed(0) + 2) < 1e-9 && Math.abs(fixed(2) + 1) < 1e-9, "snapped to y = ½x − 2");
+
+  // Drawn correctly but with no caption equation: it must not be "eliminated" onto 4x + 2y = 3.
+  const right = checkFigure(plot("", "0.5*x - 2"), { lines: facts.lines.slice(0, 1), vectors: [] }, compileExpression);
+  const kept = compileExpression(right.spec.plot!.curves[0].expression!);
+  assert.ok(Math.abs(kept(0) + 2) < 1e-9 && Math.abs(kept(2) + 1) < 1e-9, "line through the marked points kept");
+});

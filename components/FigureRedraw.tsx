@@ -33,6 +33,10 @@ function Plot({ spec }: { spec: NonNullable<FigureSpec["plot"]> }) {
   const axisX = sx(Math.min(xMax, Math.max(xMin, 0)));
   const xTicks = niceTicks(xMin, xMax).filter(t => Math.abs(t.value) > 1e-9);
   const yTicks = niceTicks(yMin, yMax).filter(t => Math.abs(t.value) > 1e-9);
+  // Labels always stay inside the plot (never spill over the text around the figure).
+  const cx = (x: number) => Math.min(W - pad.right - 4, Math.max(pad.left + 4, x));
+  const cy = (y: number) => Math.min(H - pad.bottom - 6, Math.max(pad.top + 14, y));
+  const inView = (p: { x: number; y: number }) => p.x >= xMin && p.x <= xMax && p.y >= yMin && p.y <= yMax;
   const path = (points: Array<{ x: number; y: number }>) => points.map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join("");
 
   return (
@@ -76,10 +80,10 @@ function Plot({ spec }: { spec: NonNullable<FigureSpec["plot"]> }) {
         anchor ??= curve.points.at(-1) ?? null;
         return anchor ? <Label key={`cl${i}`} x={Math.min(W - pad.right - 4, sx(anchor.x) + 8)} y={Math.max(pad.top + 12, sy(anchor.y) - 8)} text={curve.label} color={curve.color} anchor={sx(anchor.x) > W - 160 ? "end" : "start"} size={19} /> : null;
       })}
-      {spec.arrows.map((arrow, i) => <Label key={`al${i}`} x={sx(arrow.to.x) + (arrow.to.x >= arrow.from.x ? 8 : -8)} y={sy(arrow.to.y) + (arrow.to.y >= arrow.from.y ? -8 : 18)} text={arrow.label} color={arrow.color} anchor={arrow.to.x >= arrow.from.x ? "start" : "end"} />)}
-      {spec.segments.map((segment, i) => segment.label ? <Label key={`sl${i}`} x={(sx(segment.from.x) + sx(segment.to.x)) / 2 + 6} y={(sy(segment.from.y) + sy(segment.to.y)) / 2 - 6} text={segment.label} color={segment.color} size={18} /> : null)}
-      {spec.points.map((point, i) => <Label key={`pl${i}`} x={sx(point.at.x) + 9} y={sy(point.at.y) - 9} text={point.label} color={point.color} size={19} />)}
-      {spec.labels.map((label, i) => <Label key={`l${i}`} x={sx(label.at.x)} y={sy(label.at.y)} text={label.text} color={label.color} size={19} anchor="middle" />)}
+      {spec.arrows.map((arrow, i) => <Label key={`al${i}`} x={cx(sx(arrow.to.x) + (arrow.to.x >= arrow.from.x ? 8 : -8))} y={cy(sy(arrow.to.y) + (arrow.to.y >= arrow.from.y ? -8 : 18))} text={arrow.label} color={arrow.color} anchor={arrow.to.x >= arrow.from.x ? "start" : "end"} />)}
+      {spec.segments.map((segment, i) => segment.label ? <Label key={`sl${i}`} x={cx((sx(segment.from.x) + sx(segment.to.x)) / 2 + 6)} y={cy((sy(segment.from.y) + sy(segment.to.y)) / 2 - 6)} text={segment.label} color={segment.color} size={18} /> : null)}
+      {spec.points.map((point, i) => <Label key={`pl${i}`} x={cx(sx(point.at.x) + 9)} y={cy(sy(point.at.y) - 9)} text={point.label} color={point.color} size={19} />)}
+      {spec.labels.map((label, i) => !inView(label.at) ? null : <Label key={`l${i}`} x={cx(sx(label.at.x))} y={cy(sy(label.at.y))} text={label.text} color={label.color} size={19} anchor="middle" />)}
     </svg>
   );
 }

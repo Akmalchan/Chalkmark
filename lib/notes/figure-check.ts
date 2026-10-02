@@ -33,6 +33,21 @@ function parseLines(text: string): Line[] {
     if (!a && !b) continue;
     lines.push({ a, b, c, label: m[0] });
   }
+  // Slope-intercept "y = mx + b" (m may be a fraction: 1/2, ½, -2/3).
+  const value = (s: string) => {
+    const vulgar: Record<string, number> = { "½": 0.5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": 0.25, "¾": 0.75 };
+    if (s in vulgar) return vulgar[s];
+    const [p, q] = s.split("/");
+    return q === undefined ? Number(p) : Number(p) / Number(q);
+  };
+  const si = /(?<![\d.^_xyz])y=([+-]?)(\d+\.?\d*(?:\/\d+\.?\d*)?|[½⅓⅔¼¾])?x(?:([+-])(\d+\.?\d*(?:\/\d+\.?\d*)?|[½⅓⅔¼¾]))?(?![\d.\/a-z(^])/g;
+  for (const m of text.matchAll(si)) {
+    const slope = (m[1] === "-" ? -1 : 1) * (m[2] ? value(m[2]) : 1);
+    const intercept = m[4] ? (m[3] === "-" ? -1 : 1) * value(m[4]) : 0;
+    if (!Number.isFinite(slope) || !Number.isFinite(intercept)) continue;
+    // y = mx + b  ⇔  -m·x + 1·y = b
+    lines.push({ a: -slope, b: 1, c: intercept, label: m[0] });
+  }
   return lines;
 }
 
@@ -94,7 +109,7 @@ function curveValue(curve: NonNullable<FigureSpec["plot"]>["curves"][number], x:
  * Check a redrawn plot against the board's equations and vectors; snap what disagrees.
  * `compile` turns an arithmetic expression into a function (lib/plot-math compileExpression).
  */
-export function checkFigure(spec: FigureSpec, facts: BoardFacts, compile: (expression: string) => (x: number) => number): FigureCheck {
+export function checkFigure(spec: FigureSpec, facts: BoardFacts, compile: (expression: string) => (x: number) => number, own?: BoardFacts): FigureCheck {
   const checked: string[] = [], corrected: string[] = [];
   if (spec.kind !== "plot" || !spec.plot) return { spec, checked, corrected };
   const plot = structuredClone(spec.plot);
@@ -129,28 +144,37 @@ export function checkFigure(spec: FigureSpec, facts: BoardFacts, compile: (expre
     if (!curve.label || relabel) curve.label = target.label.replace(/\*/g, "");
     (exact ? checked : corrected).push(`line ${target.label}`);
   };
+  // The figure's own caption/description names its lines ("Graph of y = ½x − 2"): those come first, and a
+  // label naming some other line of the lecture is not trusted over them.
+  const ownLines = (own?.lines ?? []).map(l => facts.lines.find(f => same(f, l)) ?? l);
+  const pool = ownLines.length ? ownLines : facts.lines;
+  // Marked points a curve passes through pin it down: never move it onto a line that misses them all.
+  const tolerance = span * 0.04;
+  const onCurve = (curve: Curve) => plot.points.filter(p => { const y = curveValue(curve, p.at.x, evaluate); return y !== null && Math.abs(y - p.at.y) < tolerance; });
+  const keepsPoints = (curve: Curve, l: Line) => { const pinned = onCurve(curve); return !pinned.length || pinned.some(p => Math.abs(lineY(l, p.at.x) - p.at.y) < tolerance); };
   const pending: Curve[] = [];
   for (const curve of plot.curves) {
     const labeled = parseLines(normalizeMath(curve.label))[0];
-    const named = labeled ? facts.lines.find(l => same(l, labeled)) ?? (facts.lines.length ? undefined : labeled) : undefined;
-    if (named && named.b !== 0 && !used.has(named)) { snap(curve, named, false); continue; }
-    const scored = facts.lines.filter(l => l.b !== 0 && !used.has(l)).map(l => ({ l, error: errorTo(curve, l) })).sort((p, q) => p.error - q.error);
+    const known = labeled ? (ownLines.find(l => same(l, labeled)) ?? (ownLines.length ? undefined : facts.lines.find(l => same(l, labeled)))) : undefined;
+    const named = known ?? (labeled && !facts.lines.length && !ownLines.length ? labeled : undefined);
+    if (named && named.b !== 0 && !used.has(named) && keepsPoints(curve, named)) { snap(curve, named, false); continue; }
+    const scored = pool.filter(l => l.b !== 0 && !used.has(l) && keepsPoints(curve, l)).map(l => ({ l, error: errorTo(curve, l) })).sort((p, q) => p.error - q.error);
     if (scored[0] && scored[0].error < span * 0.12) { snap(curve, scored[0].l, Boolean(labeled)); continue; }
     pending.push(curve);
   }
   // Pass 2: when the straight lines left over and the board lines left over are equally many, each drawn
   // line is a wrong copy of one board line — pair them by best fit and fix them (labels included).
-  const leftover = facts.lines.filter(l => l.b !== 0 && !used.has(l));
+  const leftover = pool.filter(l => l.b !== 0 && !used.has(l));
   const straight = pending.filter(isStraight);
   if (straight.length && straight.length === leftover.length && leftover.length <= 3) {
-    const pairs = straight.flatMap(curve => leftover.map(l => ({ curve, l, error: errorTo(curve, l) }))).sort((p, q) => p.error - q.error);
+    const pairs = straight.flatMap(curve => leftover.filter(l => keepsPoints(curve, l)).map(l => ({ curve, l, error: errorTo(curve, l) }))).sort((p, q) => p.error - q.error);
     const taken = new Set<Curve>();
     for (const { curve, l } of pairs) if (!taken.has(curve) && !used.has(l)) { taken.add(curve); snap(curve, l, true); }
   }
   // A labeled line that is not on the board (and was not paired above) still matches its own label exactly.
   for (const curve of pending) {
     const labeled = parseLines(normalizeMath(curve.label))[0];
-    if (labeled && labeled.b !== 0 && !snapped.has(curve) && !facts.lines.some(l => same(l, labeled))) snap(curve, labeled, false);
+    if (labeled && labeled.b !== 0 && !snapped.has(curve) && !facts.lines.some(l => same(l, labeled)) && keepsPoints(curve, labeled)) snap(curve, labeled, false);
   }
 
   // Vectors: labeled arrows take the board's components exactly.

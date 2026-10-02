@@ -52,7 +52,8 @@ export async function redrawFigures(
           return true;
         }
         // The board is the authority on numbers: check the drawing against it and snap what disagrees.
-        const verified = checkFigure(payload.spec, facts, compileExpression);
+        // The figure's own caption and description name its lines; they take priority over the rest of the lecture.
+        const verified = checkFigure(payload.spec, facts, compileExpression, boardFacts([block.content, block.detail]));
         block.redraw = verified.spec;
         block.redrawCheck = { checked: verified.checked, corrected: verified.corrected };
         ok += 1;
