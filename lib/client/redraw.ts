@@ -31,8 +31,10 @@ export async function redrawFigures(
         form.append("kind", block.kind);
         form.append("caption", block.content);
         form.append("detail", block.detail);
-        // No surrounding board text: it tempts the model to draw things that are not in this figure.
-        // The image and the reading of this exact figure are the only evidence.
+        // Board text gives exact values (v₂ = (1, −2)) for what IS drawn; the prompt forbids using it
+        // to add anything that is not drawn in this figure.
+        const values = section.blocks.filter(other => other !== block && (other.kind === "equation" || other.kind === "text")).map(other => other.content).join("\n");
+        form.append("context", values.slice(0, 2500));
         const response = await fetch("/api/board/redraw", { method: "POST", body: form });
         const payload = await response.json() as { spec?: FigureSpec; usage?: Usage; model?: string; error?: string };
         if (!response.ok || !payload.spec) return false;

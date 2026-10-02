@@ -8,7 +8,7 @@ export const maxDuration = 120;
 
 const instructions = `You redraw a figure from a lecture board as clean, exact vector graphics for a student's notes.
 
-Faithfulness comes first: draw only what is visible in the image of this figure. The surrounding board text and speech are there to read labels and values correctly — never to add curves, points or labels that are not drawn in this image (an empty pair of axes stays empty). If there is no image, draw exactly what the description says.
+Faithfulness comes first: draw exactly the elements visible in the image of this figure — no more, no fewer (an empty pair of axes stays empty). The surrounding board text is for exact values only: when an element IS drawn and the board states its value (v₂ = (1, −2), a line labeled 2x + y = 3), use the stated value instead of estimating from the sketch, because hand-drawn coordinates are imprecise. Never add an element just because the text mentions it. If there is no image, draw exactly what the description says.
 
 Choose "plot" for anything with coordinate axes (functions, lines, vectors, row/column pictures, data) and "sketch" for everything else (diagrams, geometry without axes, circuits, a car, a cell).
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       `Kind on the board: ${kind}.`,
       caption && `Caption: ${caption}`,
       detail && `What the board shows: ${detail}`,
-      context && `Board text and speech around it:\n${context}`,
+      context && `Board text next to this figure (for exact values of drawn elements only):\n${context}`,
       content.length ? "" : "No image is available: redraw from the description only and set confidence accordingly.",
     ].filter(Boolean).join("\n") });
 

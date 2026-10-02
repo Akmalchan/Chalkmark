@@ -25,6 +25,7 @@ const instructions = `You write a one-to-two-page study sheet from a lecture's n
 - Be ruthless: keep only what matters for understanding and exams. Around 300-450 words in total.
 - Write like student notes: short bullets, arrows (→), abbreviations where natural, no full paragraphs, no "the lecturer explains".
 - Formulas: only the key ones, in KaTeX LaTeX.
+- Count the distinct exercises actually worked in the lecture. Give each one exactly once, in the section where it belongs — never repeat the same problem as a second "example" in another section (if one problem is viewed several ways, show it once and mention the other views in bullets).
 - Give each main idea a worked example. Prefer the lecture's own example (kind "lecture"), with the actual numbers from the board. If the lecture has no example for an important idea, write a short one yourself and mark it kind "practice".
 - Figures: pick at most 3 figure blocks that carry real meaning and attach each to the section where it belongs (figureId). Never invent IDs.
 - Stay faithful to the lecture: never add facts it does not support (practice examples are the only exception, and must be marked).`;
