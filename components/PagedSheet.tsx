@@ -13,7 +13,7 @@ import type { StudySheet as Sheet } from "@/lib/notes/sheet";
  * (Safari runs a column down across pages).
  *
  * The sheet itself is rendered once off-screen by <StudySheet>; its sections are measured at the real
- * column width and placed whole. If the last page would be nearly empty, the type steps down a little
+ * column width and placed part by part (a long section continues in the next column, never clipped). If the last page would be nearly empty, the type steps down a little
  * (never below MIN_SCALE) so the sheet fits on fewer pages.
  */
 
@@ -65,21 +65,40 @@ export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: 
     };
     const headerEl = root.querySelector(".sheet-header");
     const header = { html: headerEl?.outerHTML ?? "", height: height(headerEl) };
-    const sections = [...root.querySelectorAll(".sheet-section")].map(el => ({ html: el.outerHTML, height: height(el) }));
+    // Sections are placed part by part (heading, bullets, each formula, figure, example), so a long
+    // section continues in the next column instead of being cut off. A heading stays with what follows.
+    type Part = { html: string; height: number; section: number; heading: boolean };
+    const parts: Part[] = [...root.querySelectorAll(".sheet-section")].flatMap((el, section) => {
+      const children = [...el.children];
+      const bottom = parseFloat(getComputedStyle(el).marginBottom) || 0;
+      return children.map((child, i) => ({ html: child.outerHTML, height: height(child) + (i === children.length - 1 ? bottom : 0), section, heading: child.tagName === "H2" }));
+    });
+
     const takeawaysEl = root.querySelector(".sheet-takeaways");
     const takeaways = takeawaysEl ? { html: takeawaysEl.outerHTML, height: height(takeawaysEl) } : null;
 
-    // Fill page by page, column by column; a section is never split.
-    const pages: Array<{ columns: [Piece[], Piece[]] }> = [{ columns: [[], []] }];
+    const pages: Array<{ columns: [Part[], Part[]] }> = [{ columns: [[], []] }];
     const used = (page: number, column: number) => pages[page].columns[column].reduce((sum, piece) => sum + piece.height, 0);
-    const room = (page: number) => bodyH - (page === 0 ? header.height + HEADER_GAP : 0);
+    // A small safety margin: measured and rendered heights can differ by a few pixels (fonts, wrapping).
+    const room = (page: number) => (bodyH - (page === 0 ? header.height + HEADER_GAP : 0)) * 0.97;
     let page = 0, column = 0;
-    for (const section of sections) {
-      while (pages[page].columns[column].length && used(page, column) + section.height > room(page)) {
+    parts.forEach((part, i) => {
+      const next = parts[i + 1];
+      const need = part.heading && next && next.section === part.section ? part.height + next.height : part.height;
+      while (pages[page].columns[column].length && used(page, column) + need > room(page)) {
         if (column === 0) column = 1; else { pages.push({ columns: [[], []] }); page += 1; column = 0; }
       }
-      pages[page].columns[column].push(section);
-    }
+      pages[page].columns[column].push(part);
+    });
+    // Consecutive parts of one section become one <section> again (a continued one has no heading).
+    const columnHtml = (column: Part[]) => {
+      const out: string[] = [];
+      let group: Part[] = [];
+      const flush = () => { if (group.length) out.push(`<section class="sheet-section${group[0].heading ? "" : " continued"}">${group.map(p => p.html).join("")}</section>`); group = []; };
+      for (const part of column) { if (group.length && group[0].section !== part.section) flush(); group.push(part); }
+      flush();
+      return out;
+    };
     let takeawaysPage = pages.length - 1;
     if (takeaways) {
       const last = pages.length - 1;
@@ -89,7 +108,7 @@ export function PagedSheet({ doc, sheet, urls, paper }: { doc: NotesDoc; sheet: 
     const last = pages.length - 1;
     const lastUsed = Math.max(used(last, 0), used(last, 1)) + (takeaways && takeawaysPage === last ? takeaways.height : 0);
     if (pages.length > 1 && lastUsed < room(last) * 0.45 && scale - STEP >= MIN_SCALE) { setScale(s => Math.round((s - STEP) * 100) / 100); return; }
-    setLayout({ header, takeaways, scale, pages: pages.map(p => ({ columns: [p.columns[0].map(x => x.html), p.columns[1].map(x => x.html)] })) });
+    setLayout({ header, takeaways, scale, pages: pages.map(p => ({ columns: [columnHtml(p.columns[0]), columnHtml(p.columns[1])] })) });
   }, [doc, sheet, urls, paper, scale, loaded, bodyH]);
 
   // Figures that load late change heights: measure again when they do.
