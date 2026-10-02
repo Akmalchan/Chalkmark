@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo, Mascot } from "@/components/brand/Logo";
 import { EngineDemo } from "@/components/landing/EngineDemo";
+import { Algorithm } from "@/components/landing/Algorithm";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
         <nav className="nav-links" aria-label="Sections">
           <a href="#demo">Live engine</a>
           <a href="#pipeline">Pipeline</a>
+          <a href="#algorithm">Algorithm</a>
           <a href="#accuracy">Accuracy</a>
         </nav>
         <div className="nav-actions">
@@ -92,6 +94,8 @@ export default function Home() {
           </ol>
         </div>
       </section>
+
+      <Algorithm />
 
       <section className="tech accuracy" id="accuracy">
         <div className="tech-inner">

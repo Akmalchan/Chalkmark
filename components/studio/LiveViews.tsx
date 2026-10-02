@@ -60,7 +60,11 @@ export function BoardMemoryView({ engine, tick, mode }: { engine: BoardEngine | 
 }
 
 /** Draws the board outline and the cells the engine is currently ignoring (lecturer, motion) over the camera. */
-export function EngineOverlay({ engine, quad, width, height, tick }: { engine: BoardEngine | null; quad: Quad; width: number; height: number; tick: number }) {
+/**
+ * Cell states drawn over the camera view. `vivid` (landing demo) adds the grid, outlines, and a lime
+ * flash on cells whose ink was captured within the last couple of lecture seconds (`now`).
+ */
+export function EngineOverlay({ engine, quad, width, height, tick, vivid = false, now = 0 }: { engine: BoardEngine | null; quad: Quad; width: number; height: number; tick: number; vivid?: boolean; now?: number }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const element = canvas.current;
@@ -80,19 +84,43 @@ export function EngineOverlay({ engine, quad, width, height, tick }: { engine: B
       const z = hom[6] * x + hom[7] * y + 1;
       return [(hom[0] * x + hom[1] * y + hom[2]) / z, (hom[3] * x + hom[4] * y + hom[5]) / z];
     };
-    for (let c = 0; c < engine.occluded.length; c += 1) {
-      const occluded = engine.occluded[c], moving = engine.moving[c];
-      if (!occluded && !moving) continue;
-      const cx = c % engine.cols, cy = Math.floor(c / engine.cols);
-      context.fillStyle = occluded === 1 ? "rgba(255,112,82,.32)" : occluded === 2 ? "rgba(255,112,82,.14)" : "rgba(216,255,101,.18)";
+    const cellPath = (cx: number, cy: number, inset = 0) => {
       context.beginPath();
-      [[cx, cy], [cx + 1, cy], [cx + 1, cy + 1], [cx, cy + 1]].forEach(([x, y], i) => {
+      [[cx + inset, cy + inset], [cx + 1 - inset, cy + inset], [cx + 1 - inset, cy + 1 - inset], [cx + inset, cy + 1 - inset]].forEach(([x, y], i) => {
         const [px, py] = project(x, y);
         if (i) context.lineTo(px, py); else context.moveTo(px, py);
       });
       context.closePath();
-      context.fill();
+    };
+    if (vivid) {
+      context.lineWidth = 0.6;
+      context.strokeStyle = "rgba(216,255,101,.22)";
+      context.beginPath();
+      for (let x = 1; x < engine.cols; x += 1) { const [ax, ay] = project(x, 0), [bx, by] = project(x, engine.rows); context.moveTo(ax, ay); context.lineTo(bx, by); }
+      for (let y = 1; y < engine.rows; y += 1) { const [ax, ay] = project(0, y), [bx, by] = project(engine.cols, y); context.moveTo(ax, ay); context.lineTo(bx, by); }
+      context.stroke();
+      context.lineWidth = 1.2;
     }
-  }, [engine, quad, width, height, tick]);
+    for (let c = 0; c < engine.occluded.length; c += 1) {
+      const occluded = engine.occluded[c], moving = engine.moving[c];
+      const age = now - engine.birth[c];
+      const fresh = vivid && age >= 0 && age < 2.5;
+      if (!occluded && !moving && !fresh) continue;
+      const cx = c % engine.cols, cy = Math.floor(c / engine.cols);
+      if (!vivid) {
+        context.fillStyle = occluded === 1 ? "rgba(255,112,82,.32)" : occluded === 2 ? "rgba(255,112,82,.14)" : "rgba(216,255,101,.18)";
+        cellPath(cx, cy); context.fill();
+        continue;
+      }
+      let fill: string, stroke: string;
+      if (occluded === 1) { fill = "rgba(255,72,48,.55)"; stroke = "rgba(255,140,110,.95)"; }
+      else if (occluded === 2) { fill = "rgba(255,107,53,.22)"; stroke = "rgba(255,107,53,.75)"; }
+      else if (moving) { fill = "rgba(255,206,46,.38)"; stroke = "rgba(255,214,70,.95)"; }
+      else { const a = 1 - age / 2.5; fill = `rgba(185,228,94,${(0.55 * a).toFixed(3)})`; stroke = `rgba(216,255,101,${a.toFixed(3)})`; }
+      cellPath(cx, cy, 0.06);
+      context.fillStyle = fill; context.fill();
+      context.strokeStyle = stroke; context.stroke();
+    }
+  }, [engine, quad, width, height, tick, vivid, now]);
   return <canvas ref={canvas} className="engine-overlay" />;
 }

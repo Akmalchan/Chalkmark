@@ -80,10 +80,18 @@ export function EngineDemo() {
         <figure className="demo-panel">
           <div className="demo-frame">
             <canvas ref={camera} />
-            {engine && <EngineOverlay engine={engine} quad={quad} width={W} height={H} tick={tick} />}
+            {engine && <EngineOverlay engine={engine} quad={quad} width={W} height={H} tick={tick} vivid now={clock} />}
             <span className="demo-tag">INPUT · CAMERA</span>
           </div>
-          <figcaption><b>What the camera sees.</b> Red cells are ignored this frame: the lecturer, or ink still moving.</figcaption>
+          <figcaption>
+            <b>What the camera sees.</b> Every cell is re-judged each frame.
+            <span className="demo-legend">
+              <i className="lg-person" />person · ignored
+              <i className="lg-buffer" />safety buffer
+              <i className="lg-moving" />still changing
+              <i className="lg-fresh" />ink just captured
+            </span>
+          </figcaption>
         </figure>
         <div className="demo-arrow" aria-hidden="true"><span>board<br />engine</span></div>
         <figure className="demo-panel">
