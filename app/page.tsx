@@ -108,14 +108,15 @@ export default function Home() {
           <div>
             <span className="tech-eyebrow">// open source</span>
             <h2>Read every line. Run it yourself.</h2>
-            <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Clone it, run it with your own Gemini key, or put it on Cloud Run with one script.</p>
+            <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Run the board engine from your terminal with the CLI, host your own copy, or put it on Cloud Run with one script.</p>
             <div className="opensource-actions">
               <a className="cta big primary" href={GITHUB_URL} target="_blank" rel="noreferrer">View on GitHub<span>Akmalchan/Chalkmark</span></a>
             </div>
           </div>
           <div className="opensource-terminal">
             <CopyCommand command={`git clone ${GITHUB_URL}`} />
-            <CopyCommand command="npm install && npm run dev" />
+            <CopyCommand command="npm install && npm link" />
+            <CopyCommand command="chalkmark scan lecture.mp4" />
             <CopyCommand command="PROJECT=my-project ./scripts/deploy-cloud-run.sh" />
           </div>
         </div>

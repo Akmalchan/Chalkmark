@@ -19,6 +19,19 @@ camera / recording ──► on-device board memory ──► saved board states
 
 Speech: live mode records the microphone in self-contained 75-second segments that are transcribed while class continues; recordings have their audio extracted on-device (WebCodecs via Mediabunny) and sent as small Opus chunks.
 
+## Command line
+
+The same board engine runs in your terminal. The video is decoded locally with ffmpeg and never leaves your machine; only the saved board images go to a Chalkmark server (the public one by default, so no API key is needed).
+
+```bash
+npm install && npm link          # puts `chalkmark` on your PATH
+chalkmark scan lecture.mp4       # engine → boards → Gemini → notes.md + study-sheet.md
+chalkmark board whiteboard.jpg   # notes from photos of a board
+chalkmark youtube https://www.youtube.com/watch?v=…
+```
+
+Options: `--subject cs` (data structures & algorithms) or `math`, `--quick` (fewer frames), `--dry` (engine only, no AI calls), `--no-sheet`, `-o <dir>`, `--server <url>` (your own deployment). `scan` needs `ffmpeg` (`brew install ffmpeg`). A 16-minute lecture scans in about 10 seconds and becomes notes in about a minute.
+
 ## Google Cloud
 
 | Service | Role |

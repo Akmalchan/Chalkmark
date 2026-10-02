@@ -14,7 +14,8 @@
     "test": "node --import tsx --test tests/**/*.test.ts",
     "predev": "node scripts/copy-mediapipe.mjs",
     "prebuild": "node scripts/copy-mediapipe.mjs",
-    "eval": "node --import tsx scripts/eval-notes.mts"
+    "eval": "node --import tsx scripts/eval-notes.mts",
+    "chalkmark": "node bin/chalkmark.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.87",
@@ -41,5 +42,8 @@
     "@types/react-dom": "^19.3.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "bin": {
+    "chalkmark": "bin/chalkmark.mjs"
   }
 }
