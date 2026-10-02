@@ -102,29 +102,55 @@ export function checkFigure(spec: FigureSpec, facts: BoardFacts, compile: (expre
   const span = Math.max(1, plot.yMax - plot.yMin);
   const used = new Set<Line>();
 
-  // Lines: by equation label first, then by shape for unlabeled curves.
-  for (const curve of plot.curves) {
-    const labeled = parseLines(normalizeMath(curve.label))[0];
-    let target = labeled ? facts.lines.find(l => same(l, labeled)) ?? labeled : undefined;
-    if (!target) {
-      // Sample where the curve actually exists (a hand-drawn trace may not span the whole plot).
-      const lo = curve.expression || !curve.points.length ? plot.xMin : Math.min(...curve.points.map(p => p.x));
-      const hi = curve.expression || !curve.points.length ? plot.xMax : Math.max(...curve.points.map(p => p.x));
-      const xs = [0.15, 0.5, 0.85].map(t => lo + t * (hi - lo));
-      const scored = facts.lines.filter(l => l.b !== 0 && !used.has(l)).map(l => {
-        const errors = xs.map(x => { const y = curveValue(curve, x, evaluate); return y === null ? Infinity : Math.abs(y - lineY(l, x)); });
-        return { l, error: Math.max(...errors) };
-      }).sort((p, q) => p.error - q.error);
-      if (scored[0] && scored[0].error < span * 0.12) target = scored[0].l;
-    }
-    if (!target || target.b === 0) continue;
+  // Lines, pass 1: a curve takes the board line its label names (unless another curve already took it),
+  // or the board line it already follows closely.
+  type Curve = (typeof plot.curves)[number];
+  const sampleXs = (curve: Curve) => {
+    // Sample where the curve actually exists (a hand-drawn trace may not span the whole plot).
+    const lo = curve.expression || !curve.points.length ? plot.xMin : Math.min(...curve.points.map(p => p.x));
+    const hi = curve.expression || !curve.points.length ? plot.xMax : Math.max(...curve.points.map(p => p.x));
+    return [0.15, 0.5, 0.85].map(t => lo + t * (hi - lo));
+  };
+  const errorTo = (curve: Curve, l: Line) => Math.max(...sampleXs(curve).map(x => { const y = curveValue(curve, x, evaluate); return y === null ? Infinity : Math.abs(y - lineY(l, x)); }));
+  const isStraight = (curve: Curve) => {
+    const [x0, x1, x2] = sampleXs(curve);
+    const [y0, y1, y2] = [x0, x1, x2].map(x => curveValue(curve, x, evaluate));
+    if (y0 === null || y1 === null || y2 === null) return false;
+    return Math.abs(y1 - (y0 + (y2 - y0) * (x1 - x0) / ((x2 - x0) || 1))) < span * 0.03;
+  };
+  const snapped = new Set<Curve>();
+  const snap = (curve: Curve, target: Line, relabel: boolean) => {
     used.add(target);
+    snapped.add(curve);
     const drawn = [plot.xMin, plot.xMax].map(x => curveValue(curve, x, evaluate));
-    const exact = curve.expression && drawn.every((y, i) => y !== null && Math.abs(y - lineY(target!, i ? plot.xMax : plot.xMin)) < 1e-6);
+    const exact = curve.expression && drawn.every((y, i) => y !== null && Math.abs(y - lineY(target, i ? plot.xMax : plot.xMin)) < 1e-6);
     curve.expression = lineExpression(target);
     curve.points = [];
-    if (!curve.label) curve.label = target.label.replace(/\*/g, "");
+    if (!curve.label || relabel) curve.label = target.label.replace(/\*/g, "");
     (exact ? checked : corrected).push(`line ${target.label}`);
+  };
+  const pending: Curve[] = [];
+  for (const curve of plot.curves) {
+    const labeled = parseLines(normalizeMath(curve.label))[0];
+    const named = labeled ? facts.lines.find(l => same(l, labeled)) ?? (facts.lines.length ? undefined : labeled) : undefined;
+    if (named && named.b !== 0 && !used.has(named)) { snap(curve, named, false); continue; }
+    const scored = facts.lines.filter(l => l.b !== 0 && !used.has(l)).map(l => ({ l, error: errorTo(curve, l) })).sort((p, q) => p.error - q.error);
+    if (scored[0] && scored[0].error < span * 0.12) { snap(curve, scored[0].l, Boolean(labeled)); continue; }
+    pending.push(curve);
+  }
+  // Pass 2: when the straight lines left over and the board lines left over are equally many, each drawn
+  // line is a wrong copy of one board line — pair them by best fit and fix them (labels included).
+  const leftover = facts.lines.filter(l => l.b !== 0 && !used.has(l));
+  const straight = pending.filter(isStraight);
+  if (straight.length && straight.length === leftover.length && leftover.length <= 3) {
+    const pairs = straight.flatMap(curve => leftover.map(l => ({ curve, l, error: errorTo(curve, l) }))).sort((p, q) => p.error - q.error);
+    const taken = new Set<Curve>();
+    for (const { curve, l } of pairs) if (!taken.has(curve) && !used.has(l)) { taken.add(curve); snap(curve, l, true); }
+  }
+  // A labeled line that is not on the board (and was not paired above) still matches its own label exactly.
+  for (const curve of pending) {
+    const labeled = parseLines(normalizeMath(curve.label))[0];
+    if (labeled && labeled.b !== 0 && !snapped.has(curve) && !facts.lines.some(l => same(l, labeled))) snap(curve, labeled, false);
   }
 
   // Vectors: labeled arrows take the board's components exactly.

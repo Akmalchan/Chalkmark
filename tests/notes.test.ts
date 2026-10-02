@@ -202,6 +202,18 @@ test("figures are checked against the board's own math and snapped to it", async
   const second = compileExpression(rowFixed.spec.plot!.curves[1].expression!);
   assert.ok(Math.abs(second(0) - 3) < 1e-9 && Math.abs(second(2) + 1) < 1e-9, "unlabeled line snapped to 2x + y = 3");
   assert.deepEqual(rowFixed.spec.plot!.points[0].at, { x: 1, y: 1 });
+
+  // A real cloud run: the falling line drawn as x + y = 2 (slope −1, too far off to match by shape)
+  // and labeled with the OTHER line's equation. Elimination pairs it with 2x + y = 3 and fixes the label.
+  const mislabeled = { ...base, plot: { xMin: -2, xMax: 3, yMin: -1.5, yMax: 3.5, xLabel: "x", yLabel: "y", grid: false, arrows: [], segments: [], labels: [],
+    curves: [{ label: "x-2y=-1", expression: "(x+1)/2", points: [], color: "ink" as const, dashed: false },
+      { label: "x-2y=-1", expression: "2 - x", points: [], color: "ink" as const, dashed: false }],
+    points: [{ at: { x: 0, y: 2 }, label: "", color: "ink" as const }, { at: { x: 1, y: 1 }, label: "", color: "ink" as const }] } };
+  const mislabeledFixed = checkFigure(mislabeled, facts, compileExpression);
+  const falling = compileExpression(mislabeledFixed.spec.plot!.curves[1].expression!);
+  assert.ok(Math.abs(falling(0) - 3) < 1e-9 && Math.abs(falling(1.5)) < 1e-9, "falling line snapped to 2x + y = 3");
+  assert.match(mislabeledFixed.spec.plot!.curves[1].label, /2x\s*\+\s*y\s*=\s*3/);
+  assert.ok(mislabeledFixed.corrected.some(c => c.includes("2x")));
 });
 
 test("exercises are counted from the board: one problem read from several photos is one exercise", async () => {
