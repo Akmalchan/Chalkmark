@@ -16,6 +16,7 @@ import { MathText } from "@/components/math";
 import { SAMPLE_QUAD } from "@/lib/demo/synthetic-lecture";
 import { CornerPicker } from "./CornerPicker";
 import { BoardMemoryView, EngineOverlay, type MemoryMode } from "./LiveViews";
+import { InkChart } from "./InkChart";
 import { NotesView } from "@/components/NotesView";
 
 type Source = "camera" | "file" | "youtube";
@@ -447,6 +448,7 @@ export function Studio({ initialSource, sampleSrc, simulated = false, dry = fals
         )}
       </div>
 
+      {phase !== "setup" && session && <InkChart trace={session.inkTrace} boards={boards} duration={source === "file" ? video.current?.duration ?? 0 : 0} />}
       {phase !== "setup" && <BoardStrip boards={boards} />}
 
       {phase === "finishing" && (

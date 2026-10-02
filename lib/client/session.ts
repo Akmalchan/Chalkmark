@@ -80,12 +80,30 @@ export class LectureSession {
   get revision() { return this.version; }
   private emit() { this.version += 1; for (const listener of this.listeners) listener(); }
 
+  /** Ink over time for the live chart: what the board memory holds vs what the camera sees right now. */
+  readonly inkTrace: Array<{ t: number; memory: number; visible: number }> = [];
+
   ingest(frame: RGBAImage, t: number, personMask?: PersonMask): FrameReport {
     const report = this.engine.ingest(frame, t, personMask);
+    this.recordInk(t);
     this.framesAnalyzed += 1;
     this.durationSeconds = Math.max(this.durationSeconds, t);
     if (report.snapshot) this.trackSnapshot(this.handleSnapshot(report.snapshot));
     return report;
+  }
+
+  private recordInk(t: number) {
+    // memory: ink the board memory holds; visible: the part of it the camera can see this frame
+    // (cells not blocked by the lecturer or by motion), so it dips whenever someone stands in front.
+    let memory = 0, visible = 0;
+    const { inkCount, occluded } = this.engine;
+    for (let c = 0; c < inkCount.length; c += 1) { memory += inkCount[c]; if (!occluded[c]) visible += inkCount[c]; }
+    this.inkTrace.push({ t, memory, visible });
+    // Keep the trace small for long lectures: halve the resolution of the older half.
+    if (this.inkTrace.length > 3000) {
+      const old = this.inkTrace.splice(0, 1500).filter((_, i) => i % 2 === 0);
+      this.inkTrace.unshift(...old);
+    }
   }
 
   /** Save the current board right now (e.g. the lecturer is about to slide the board away). */

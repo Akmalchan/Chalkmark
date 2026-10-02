@@ -140,3 +140,16 @@ button.ghost { border: 1px solid #c8cbc2; background: var(--white); color: var(-
 .pdf-error { max-width: 8.5in; margin: 8px auto 0; color: #b3322d; font-size: 13px; }
 .pdf-pages { max-width: 9in; margin: 18px auto 0; padding: 0 12px; }
 .pdf-pages iframe { width: 100%; height: min(86vh, 11.5in); border: 1px solid #d9d5c8; border-radius: 10px; background: #e9e6dc; box-shadow: 0 18px 40px rgba(22,34,30,.12); }
+
+/* Live ink chart (between the live views and the saved boards) */
+.ink-chart { margin: 4px clamp(12px, 2vw, 24px) 0; padding: 12px 16px 4px; border: 1px solid #e3dfd3; border-radius: 14px; background: var(--white); }
+.ink-chart header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; margin-bottom: 4px; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: .04em; color: #5f6a64; }
+.ink-chart-title { margin-right: auto; text-transform: uppercase; letter-spacing: .1em; color: #1b4430; font-weight: 700; }
+.ink-legend { display: inline-flex; align-items: center; gap: 6px; }
+.ink-legend b { color: #1d2622; font-variant-numeric: tabular-nums; }
+.ink-legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+.ink-legend i.memory { background: #5d8a1f; } .ink-legend i.visible { background: #3ea2f2; }
+.ink-legend i.snap { width: 8px; height: 8px; border-radius: 50%; background: #ff6b35; }
+.ink-axis { font-family: var(--font-mono), monospace; font-size: 11px; fill: #8a958e; }
+.ink-head { animation: ink-pulse 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ink-pulse { 50% { opacity: .45; } }
