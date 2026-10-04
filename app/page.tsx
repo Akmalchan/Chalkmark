@@ -6,7 +6,7 @@ import { Partners } from "@/components/landing/Partners";
 import { CopyCommand } from "@/components/landing/CopyCommand";
 import { TerminalDemo } from "@/components/landing/TerminalDemo";
 
-const GITHUB_URL = "https://github.com/Akmalchan/chalkmark-sfsu";
+const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
 const LINKEDIN_URL = "https://www.linkedin.com/in/ashovkatov";
 
 /**
@@ -138,7 +138,7 @@ export default function Home() {
             <h2>Read every line. Run it yourself.</h2>
             <p>The board engine, the Gemini pipeline, the figure checker and the answer-key evals are all on GitHub. Clone it, run it with your own Gemini key, or put it on Cloud Run with one script.</p>
             <div className="opensource-actions">
-              <a className="cta big primary" href={GITHUB_URL} target="_blank" rel="noreferrer">View on GitHub<span>Akmalchan/chalkmark-sfsu</span></a>
+              <a className="cta big primary" href={GITHUB_URL} target="_blank" rel="noreferrer">View on GitHub<span>Akmalchan/Chalkmark</span></a>
             </div>
           </div>
           <div className="opensource-terminal">
