@@ -151,7 +151,7 @@ export default function Home() {
       <footer className="site-footer">
         <div className="footer-brand">
           <Logo size="sm" href={null} />
-          <span>Made with <b aria-label="love">♥</b> by Akmal at SF Hacks × GDG, with Gemini on Google Cloud.</span>
+          <span>Made with <b aria-label="love">♥</b> at SF Hacks × GDG, with Gemini on Google Cloud.</span>
         </div>
         <nav className="footer-links" aria-label="Links">
           <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>

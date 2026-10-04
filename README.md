@@ -163,4 +163,4 @@ Built at **SF Hacks × GDG AI Hackathon 2026** (San Francisco State University).
 
 ## License
 
-[MIT](LICENSE) © 2026 Akmal Shavkatov · [GitHub](https://github.com/Akmalchan)
+[MIT](LICENSE)
