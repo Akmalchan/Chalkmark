@@ -7,7 +7,6 @@ import { CopyCommand } from "@/components/landing/CopyCommand";
 import { TerminalDemo } from "@/components/landing/TerminalDemo";
 
 const GITHUB_URL = "https://github.com/Akmalchan/Chalkmark";
-const LINKEDIN_URL = "https://www.linkedin.com/in/ashovkatov";
 
 /**
  * Vision tokens for the MIT 18.06SC recitation (995 s), measured with Gemini countTokens:
@@ -156,7 +155,6 @@ export default function Home() {
         </div>
         <nav className="footer-links" aria-label="Links">
           <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
-          <a href={LINKEDIN_URL} target="_blank" rel="noreferrer">LinkedIn</a>
         </nav>
       </footer>
     </main>
