@@ -1,4 +1,9 @@
 <p align="center">
+  <a href="#hackathon"><img alt="Winner: MLH Best Open-Source AI Project" src="https://img.shields.io/badge/%F0%9F%8F%86%20Winner-MLH%20Best%20Open--Source%20AI%20Project-f2b705?style=for-the-badge&labelColor=1b4430" /></a><br />
+  <sub><b>SF Hacks × GDG AI Hackathon 2026</b> · San Francisco State University · October 2, 2026</sub>
+</p>
+
+<p align="center">
   <img src="docs/banner.svg" alt="Chalkmark — lecture boards to clean notes" width="760" />
 </p>
 
@@ -22,7 +27,8 @@
   <a href="#command-line">CLI</a> ·
   <a href="#results">Results</a> ·
   <a href="#responsible-ai">Responsible AI</a> ·
-  <a href="#run-it">Run it</a>
+  <a href="#run-it">Run it</a> ·
+  <a href="#hackathon">Hackathon</a>
 </p>
 
 ---
@@ -153,13 +159,19 @@ cli/              the `chalkmark` command
 evals/            answer keys
 ```
 
-## Hackathon tracks
+## Hackathon
 
-Built at **SF Hacks × GDG AI Hackathon 2026** (San Francisco State University).
+Built solo at **SF Hacks × GDG AI Hackathon 2026** (San Francisco State University, October 2, 2026).
+
+> [!NOTE]
+> 🏆 **Winner: MLH Best Open-Source AI Project.**
+> This repository is archived and kept as it was at the hackathon. The live demo may go offline once the Google Cloud credits run out.
+
+Tracks entered:
 
 - **GDG — Build with AI for Social Good:** Gemini reads, redraws and condenses the board; Vertex AI, Cloud Run, Firestore, Cloud Storage and Secret Manager on the provided credits.
 - **Build for SFSU:** accessible board notes for SF State students; responsible-AI section above.
-- **MLH — Best Open-Source AI Project / Best Use of Gemma 4:** MIT-licensed, Gemma 4 via the Gemini API, named above with its terms.
+- **MLH — Best Open-Source AI Project 🏆 (won) / Best Use of Gemma 4:** MIT-licensed, Gemma 4 via the Gemini API, named above with its terms.
 
 ## License
 
